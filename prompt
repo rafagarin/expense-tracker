@@ -1,0 +1,62 @@
+This script helps me track my personal expenses.
+
+### Definition
+
+1. Triggers
+   A workflow will be triggered whenever I receive an email notification from my bank (this is defined by a tag on Gmail). It will read the email, extract what info it can about the movement, and save it as a new row in my database. The workflow must ensure idempotency.
+   I should also be able to add movements manually.
+2. Database
+   The database columns are:
+    - id
+    - gmail_id (some value to ensure idempotency for movements that come from Gmail)
+    - accounting_system_id (some value to ensure idempotency for movements that come from an external accounting system, such as Splitwise. We could later include a work expense reimbursement system)
+    - timestamp (in ISO 8601 format, YYYY-MM-DDTHH:mm:ss.sssZ)
+    - amount
+    - currency (I’m expecting CLP, USD, GBP)
+    - source_description (the usually non-descriptive string that the bank email provides)
+    - user_description
+    - category (housing, food, transportation, health, personal, household, entertainment, work, miscellaneous)
+    - direction (outflow, inflow, neutral)
+    - type (expense, cash, debit, credit, debit repayment, credit repayment)
+    - status (unsettled/settled for debit and credit movements, null for others)
+    - comment (free text field)
+    - settled_movement_id (used for repayments, id of the movement that is settled by this movement)
+    - accounting_system (initially “splitwise” only, for movements with accounting_system_id)
+
+3. User input: the user will then provide additional information about the movement, in order to complete the columns that were left blank in the initial script.
+    
+    The system can interact with the user in different ways: directly in the database, through a mobile/web UI, through a WhatsApp chat with AI.
+    
+Out of scope:
+
+- Movements paid with credit card will just count as expenses (type: “expense”) right at that moment. They don’t count as credit, and the actual payment of the credit card bill is later ignored.
+- Cash withdrawals will just count as a miscellaneous expense.
+
+### Stack
+
+Stack: Google Apps Script, connecting to Gmail, Google Sheets, Splitwise API, and Google AI studio API.
+
+### Examples
+
+Here is how some example movements would be represented in the database:
+1. If I bought something for myself, it is added as a movement with type: “expense”
+2. Cash withdrawals are added with type: “cash”, category: “miscellaneous”.
+3. Transfers between my own accounts will be added with direction: “neutral”.
+4. When I lend money to people, it must be settled by a later movement. For example, say I paid a restaurant bill for multiple people but expect to be paid back what others spent. Then my part is added with type: “expense”, and the part of other people is added as type: “debit”.
+  This debit can later be settled in two ways:
+   1. With a bank transfer, which will be read from Gmail and saved with type “debit repayment”.
+   2. Or by adding it to Splitwise, which will also be saved with type “debit repayment”.
+5. When someone else lends me money, there is no way to detect the initial loan, so when I pay it with a bank transfer it will simply be added as a single movement with type: “expense”. Or it can be added to Splitwise, in which case it will counted as a movement with type: “credit”.
+
+### Versions
+
+1. Reading emails and adding them to the database –which will simply be a Google Sheets spreadsheet– ensuring idempotency with the gmail_id value. Later info will be added manually directly into the spreadsheet by the user.
+    
+    In v1, loans are manually adjusted inline. That means the user will edit the line by subtracting the amount that is expected to be received back. That means we do not need to later add another line to settle the loan, and that the status column is not used.
+    
+2. Transfers from other people that are settling debit (that is, paying me back) are added as movements, as explained in the “Loans to other people” point above.
+3. Reading Splitwise credit movements (paid by someone else) using the Splitwise API, and copying them into the database ensuring idempotency with the accounting_system_id value. This is done in order to properly keep track of expenses that were originally paid by other people. It will then be my responsibility to actually transfer the amount to the other person.
+4. Writing debit movements (paid by me) to Splitwise, ensuring idempotency with the accounting_system_id value. This will be done manually, using a single action trigger to add all currently pending movements. 
+5. Keeping track of settlements on Splitwise. Once loans (credit or debit) are marked as settled on Splitwise, they are marked as settled on the database. The system should show a summary of all unpaid loans.
+6. Metrics: the system should display graphs and aggregations, for example how much I’m spending monthly on a certain category. Metrics should always reflect **my net spending**, not gross movements. Expense categories: expense, cash, credit. Excluded categories:  debit (money owed to me, not real spend).
+7. Rules: I should be able to define rules for autocompletion of information (eg monthly payment of iCloud subscription is shared).
