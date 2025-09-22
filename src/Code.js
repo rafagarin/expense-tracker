@@ -4,6 +4,17 @@
  */
 
 /**
+ * Creates a custom menu in the Google Sheets UI
+ * This function runs automatically when the spreadsheet is opened
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Expense Tracker')
+    .addItem('Process Bank Emails', 'processBankEmails')
+    .addToUi();
+}
+
+/**
  * The main function that will be triggered to process bank emails.
  * This is the entry point that should be called by Google Apps Script triggers.
  */
@@ -40,3 +51,4 @@ function getMovementsByAccountingSystemId(accountingSystemId) {
   const expenseTracker = new ExpenseTracker();
   return expenseTracker.getMovementsByAccountingSystemId(accountingSystemId);
 }
+
