@@ -6,13 +6,13 @@ class ExpenseTracker {
   constructor() {
     this.database = new Database();
     this.gmailService = new GmailService();
-    this.emailParser = new EmailParser();
+    this.googleAIStudioService = new GoogleAIStudioService();
   }
 
   /**
    * Main function to process bank emails and add movements to the database
    */
-  processBankEmails() {
+  async processBankEmails() {
     try {
       Logger.log('Starting bank email processing...');
 
@@ -27,23 +27,29 @@ class ExpenseTracker {
         return;
       }
 
-      // 3. Parse messages and extract transaction data
+      // 3. Parse messages and extract transaction data using AI-enhanced parsing
       const batchMovements = [];
       let nextId = this.database.getNextId();
 
-      unprocessedMessages.forEach(message => {
-        const transactions = this.emailParser.parseEmail(message);
+      for (const message of unprocessedMessages) {
+        const gmailId = message.getId();
+        const emailBody = message.getPlainBody();
         
-        transactions.forEach(transaction => {
-          const movementRow = this.emailParser.createMovementRow(transaction, nextId);
+        // Parse email using Google AI Studio
+        const transaction = await this.googleAIStudioService.parseEmailWithGoogleAIStudio(emailBody, gmailId);
+        
+        if (transaction) {
+          const movementRow = this.createMovementRow(transaction, nextId);
           batchMovements.push({
             ts: transaction.timestamp,
             row: movementRow,
             gmailId: transaction.gmailId
           });
           nextId++;
-        });
-      });
+        } else {
+          Logger.log(`No transaction data extracted from email ${gmailId}`);
+        }
+      }
 
       // 4. Add all movements to the database
       if (batchMovements.length > 0) {
@@ -83,5 +89,75 @@ class ExpenseTracker {
    */
   getMovementsByAccountingSystemId(accountingSystemId) {
     return this.database.getMovementsByAccountingSystemId(accountingSystemId);
+  }
+
+  /**
+   * Create a movement row for the database from parsed transaction data
+   * @param {Object} transaction - Parsed transaction object
+   * @param {number} nextId - Next available ID for the movement
+   * @returns {Array} Movement row array for database insertion
+   */
+  createMovementRow(transaction, nextId) {
+    // Determine direction based on transaction type
+    const direction = this.getDirectionForTransactionType(transaction.transactionType);
+    
+    // Determine status for debit/credit transactions
+    const status = this.getStatusForTransactionType(transaction.transactionType);
+
+    return [
+      nextId,                                    // id
+      transaction.gmailId,                       // gmail_id
+      null,                                      // accounting_system_id
+      transaction.timestamp,                     // timestamp
+      transaction.amount,                        // amount
+      transaction.currency,                      // currency
+      transaction.sourceDescription,             // source_description
+      null,                                      // user_description
+      null,                                      // category
+      direction,                                 // direction
+      transaction.transactionType,               // type
+      status,                                    // status
+      null,                                      // comment
+      null,                                      // settled_movement_id
+      null                                       // accounting_system
+    ];
+  }
+
+  /**
+   * Get the direction for a given transaction type
+   * @param {string} transactionType - The transaction type
+   * @returns {string} The direction constant
+   */
+  getDirectionForTransactionType(transactionType) {
+    switch (transactionType) {
+      case MOVEMENT_TYPES.EXPENSE:
+      case MOVEMENT_TYPES.CASH:
+      case MOVEMENT_TYPES.DEBIT:
+      case MOVEMENT_TYPES.CREDIT_REPAYMENT:
+        return DIRECTIONS.OUTFLOW;
+      case MOVEMENT_TYPES.CREDIT:
+      case MOVEMENT_TYPES.DEBIT_REPAYMENT:
+        return DIRECTIONS.INFLOW;
+      default:
+        return DIRECTIONS.OUTFLOW;
+    }
+  }
+
+  /**
+   * Get the status for a given transaction type
+   * @param {string} transactionType - The transaction type
+   * @returns {string|null} The status constant or null
+   */
+  getStatusForTransactionType(transactionType) {
+    switch (transactionType) {
+      case MOVEMENT_TYPES.DEBIT:
+      case MOVEMENT_TYPES.CREDIT:
+        return STATUS.UNSETTLED;
+      case MOVEMENT_TYPES.DEBIT_REPAYMENT:
+      case MOVEMENT_TYPES.CREDIT_REPAYMENT:
+        return STATUS.SETTLED;
+      default:
+        return null;
+    }
   }
 }

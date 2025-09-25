@@ -18,9 +18,9 @@ function onOpen() {
  * The main function that will be triggered to process bank emails.
  * This is the entry point that should be called by Google Apps Script triggers.
  */
-function processBankEmails() {
+async function processBankEmails() {
   const expenseTracker = new ExpenseTracker();
-  expenseTracker.processBankEmails();
+  await expenseTracker.processBankEmails();
 }
 
 /**
@@ -50,5 +50,15 @@ function getMovementsByGmailId(gmailId) {
 function getMovementsByAccountingSystemId(accountingSystemId) {
   const expenseTracker = new ExpenseTracker();
   return expenseTracker.getMovementsByAccountingSystemId(accountingSystemId);
+}
+
+/**
+ * Set up Google AI Studio API key
+ * Call this function once to securely store your API key
+ * @param {string} apiKey - Your Google AI Studio API key
+ */
+function setupGoogleAIStudioAPIKey(apiKey) {
+  setApiKey(API_CONFIG.GOOGLE_AI_STUDIO.API_KEY_PROPERTY, apiKey);
+  Logger.log('Google AI Studio API key has been stored securely.');
 }
 

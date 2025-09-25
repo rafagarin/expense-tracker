@@ -75,4 +75,43 @@ const ACCOUNTING_SYSTEMS = {
   SPLITWISE: 'splitwise'
 };
 
+// API Configuration
+const API_CONFIG = {
+  // Google AI Studio API configuration
+  GOOGLE_AI_STUDIO: {
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
+    MODEL: 'gemini-2.0-flash',
+    API_KEY_PROPERTY: 'GOOGLE_AI_STUDIO_API_KEY'
+  }
+};
+
+/**
+ * Get API key from PropertiesService
+ * This is the secure way to store API keys in Google Apps Script
+ * @param {string} keyName - The property name for the API key
+ * @returns {string} The API key
+ */
+function getApiKey(keyName) {
+  const properties = PropertiesService.getScriptProperties();
+  const apiKey = properties.getProperty(keyName);
+  
+  if (!apiKey) {
+    throw new Error(`API key '${keyName}' not found. Please set it in the script properties.`);
+  }
+  
+  return apiKey;
+}
+
+/**
+ * Set API key in PropertiesService
+ * This should be called once to store your API key securely
+ * @param {string} keyName - The property name for the API key
+ * @param {string} apiKey - The API key value
+ */
+function setApiKey(keyName, apiKey) {
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(keyName, apiKey);
+  Logger.log(`API key '${keyName}' has been stored securely.`);
+}
+
 // Configuration is now available globally in Google Apps Script
