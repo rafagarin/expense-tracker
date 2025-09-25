@@ -119,6 +119,7 @@ class ExpenseTracker {
         try {
           const movementId = movement[COLUMNS.ID];
           const userDescription = movement[COLUMNS.USER_DESCRIPTION];
+          const comment = movement[COLUMNS.COMMENT];
           
           // Prepare movement context for AI analysis
           const movementData = {
@@ -130,7 +131,9 @@ class ExpenseTracker {
           };
 
           // 3. Use AI to analyze the category and split requirements
-          const analysisResult = await this.googleAIStudioService.analyzeCategory(userDescription, movementData);
+          // Combine user description and comment for analysis
+          const fullDescription = [userDescription, comment].filter(Boolean).join(' ');
+          const analysisResult = await this.googleAIStudioService.analyzeCategory(fullDescription, movementData);
 
           if (analysisResult) {
             // 4. Update the movement with the analysis results
@@ -178,6 +181,114 @@ class ExpenseTracker {
     }
   }
 
+
+  /**
+   * Push pending Splitwise settlement movements to Splitwise
+   * Creates expenses in Splitwise for movements marked as "pending splitwise settlement"
+   */
+  async pushToSplitwise() {
+    try {
+      Logger.log('Starting push to Splitwise...');
+
+      // 1. Test Splitwise connection first
+      const connectionTest = await this.splitwiseService.testConnection();
+      if (!connectionTest) {
+        Logger.log('Splitwise connection test failed. Please check your API key.');
+        return;
+      }
+
+      // 2. Get movements pending Splitwise settlement
+      const pendingMovements = this.database.getMovementsPendingSplitwiseSettlement();
+
+      if (pendingMovements.length === 0) {
+        Logger.log('No movements pending Splitwise settlement.');
+        return;
+      }
+
+      Logger.log(`Found ${pendingMovements.length} movement(s) pending Splitwise settlement.`);
+
+      // 3. Process each movement
+      let processedCount = 0;
+      let errorCount = 0;
+
+      for (const movement of pendingMovements) {
+        try {
+          const movementId = movement[COLUMNS.ID];
+          const amount = movement[COLUMNS.AMOUNT];
+          const currency = movement[COLUMNS.CURRENCY];
+          const description = movement[COLUMNS.USER_DESCRIPTION] || movement[COLUMNS.SOURCE_DESCRIPTION];
+          const timestamp = movement[COLUMNS.TIMESTAMP];
+          
+          // Convert timestamp to Splitwise date format (YYYY-MM-DD)
+          const date = new Date(timestamp).toISOString().split('T')[0];
+
+          // For debit movements, the amount represents what others owe us
+          // We need to find the personal portion (what we actually spent) to calculate the total
+          let totalAmount = amount; // What others owe us
+          let personalAmount = 0; // What we actually spent
+          
+          // Try to find the personal portion by looking for the expense movement with same timestamp and description
+          const allMovements = this.database.getAllMovements();
+          const personalMovement = allMovements.find(m => 
+            m[COLUMNS.TIMESTAMP] === movement[COLUMNS.TIMESTAMP] && 
+            m[COLUMNS.USER_DESCRIPTION] === movement[COLUMNS.USER_DESCRIPTION] &&
+            m[COLUMNS.TYPE] === MOVEMENT_TYPES.EXPENSE &&
+            m[COLUMNS.ID] !== movement[COLUMNS.ID] // Different from this debit movement
+          );
+          
+          if (personalMovement) {
+            personalAmount = personalMovement[COLUMNS.AMOUNT];
+            totalAmount = personalAmount + amount; // Total = personal + what others owe
+            Logger.log(`Found personal movement: personal=${personalAmount}, total=${totalAmount}`);
+          } else {
+            Logger.log(`Could not find personal movement for debit ${movement[COLUMNS.ID]}`);
+            // If we can't find the personal portion, assume the debit amount is the full amount
+            totalAmount = amount;
+            personalAmount = 0;
+          }
+          
+          Logger.log(`Debit movement: amount=${amount}, totalAmount=${totalAmount}, personalAmount=${personalAmount}`);
+          
+          // Prepare expense data for Splitwise
+          const expenseData = {
+            amount: totalAmount, // Total amount paid
+            personalAmount: personalAmount, // Personal portion
+            currency: currency,
+            description: description,
+            date: date,
+            groupId: null, // You may want to add group support later
+            otherUsers: [] // For now, we'll create simple expenses
+          };
+
+          // 4. Create expense in Splitwise
+          const splitwiseId = await this.splitwiseService.createExpense(expenseData);
+          
+          if (splitwiseId) {
+            // 5. Update the movement with Splitwise information
+            this.database.updateMovementWithSplitwiseInfo(movementId, splitwiseId);
+            processedCount++;
+            Logger.log(`Pushed movement ID ${movementId} to Splitwise with ID ${splitwiseId}`);
+          } else {
+            Logger.log(`Failed to create Splitwise expense for movement ID ${movementId}`);
+            errorCount++;
+          }
+
+          // Add a small delay to avoid hitting API rate limits
+          Utilities.sleep(1000);
+
+        } catch (error) {
+          Logger.log(`Error processing movement ID ${movement[COLUMNS.ID]}: ${error.message}`);
+          errorCount++;
+        }
+      }
+
+      Logger.log(`Push to Splitwise complete. Processed: ${processedCount}, Errors: ${errorCount}`);
+
+    } catch (error) {
+      Logger.log(`Error pushing to Splitwise: ${error.message}`);
+      throw error;
+    }
+  }
 
   /**
    * Process Splitwise movements and add them to the database
@@ -300,11 +411,7 @@ class ExpenseTracker {
       null,                                      // comment
       null,                                      // settled_movement_id
       ACCOUNTING_SYSTEMS.SPLITWISE,              // accounting_system
-      null,                                      // split_amount
-      null,                                      // split_category
-      null,                                      // split_description
-      false,                                     // is_split
-      null                                       // original_movement_id
+      SOURCES.ACCOUNTING                         // source
     ];
   }
 
@@ -337,11 +444,7 @@ class ExpenseTracker {
       null,                                      // comment
       null,                                      // settled_movement_id
       null,                                      // accounting_system
-      null,                                      // split_amount
-      null,                                      // split_category
-      null,                                      // split_description
-      false,                                     // is_split
-      null                                       // original_movement_id
+      SOURCES.GMAIL                              // source
     ];
   }
 

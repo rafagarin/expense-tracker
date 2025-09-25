@@ -397,6 +397,97 @@ class SplitwiseService {
   }
 
   /**
+   * Get the configured Splitwise group ID
+   * @returns {number} The group ID or default if not set
+   */
+  getSplitwiseGroupId() {
+    const properties = PropertiesService.getScriptProperties();
+    const groupId = properties.getProperty('SPLITWISE_GROUP_ID');
+    return groupId ? parseInt(groupId) : SPLITWISE_CONFIG.DEFAULT_GROUP_ID;
+  }
+
+  /**
+   * Get the configured other user ID for splitting
+   * @returns {number|null} User ID of the person you split expenses with
+   */
+  getSplitwiseOtherUserId() {
+    const properties = PropertiesService.getScriptProperties();
+    const userId = properties.getProperty('SPLITWISE_OTHER_USER_ID');
+    return userId ? parseInt(userId) : SPLITWISE_CONFIG.OTHER_USER_ID;
+  }
+
+  /**
+   * Fetch and log all user IDs from Splitwise movements
+   * This helps identify user IDs for proper expense splitting
+   */
+  async logSplitwiseUserIds() {
+    try {
+      Logger.log('Fetching Splitwise user IDs...');
+      
+      // Get current user ID first
+      await this.getCurrentUserId();
+      
+      // Get all expenses from Splitwise
+      const expenses = await this.getAllExpenses();
+      
+      if (expenses.length === 0) {
+        Logger.log('No expenses found in Splitwise');
+        return;
+      }
+
+      Logger.log(`Found ${expenses.length} expenses. Analyzing user IDs...`);
+      
+      const userIds = new Set();
+      const userDetails = new Map();
+      
+      // Process each expense to extract user information
+      for (const expense of expenses) {
+        if (expense.users && Array.isArray(expense.users)) {
+          for (const user of expense.users) {
+            if (user.user && user.user.id) {
+              const userId = user.user.id;
+              const userName = user.user.first_name + ' ' + user.user.last_name;
+              const userEmail = user.user.email;
+              
+              userIds.add(userId);
+              
+              // Store user details
+              if (!userDetails.has(userId)) {
+                userDetails.set(userId, {
+                  id: userId,
+                  name: userName,
+                  email: userEmail,
+                  isCurrentUser: userId === this.currentUserId
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Log all user IDs and details
+      Logger.log('=== SPLITWISE USER IDs ===');
+      Logger.log(`Your User ID: ${this.currentUserId}`);
+      Logger.log('Other Users:');
+      
+      for (const [userId, details] of userDetails) {
+        if (!details.isCurrentUser) {
+          Logger.log(`ID: ${userId} | Name: ${details.name} | Email: ${details.email}`);
+        }
+      }
+      
+      Logger.log('=== END USER IDs ===');
+      Logger.log(`Total unique users found: ${userIds.size}`);
+      
+      return Array.from(userIds);
+      
+    } catch (error) {
+      Logger.log(`Error fetching Splitwise user IDs: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Test the Splitwise API connection
    * @returns {boolean} True if connection is successful
    */
@@ -413,6 +504,105 @@ class SplitwiseService {
     } catch (error) {
       Logger.log(`Splitwise connection test failed: ${error.message}`);
       return false;
+    }
+  }
+
+  /**
+   * Create an expense in Splitwise
+   * @param {Object} expenseData - The expense data to create
+   * @returns {string|null} The created expense ID or null if failed
+   */
+  async createExpense(expenseData) {
+    try {
+      const url = `${this.splitwiseBaseUrl}/create_expense`;
+      
+      // For debit movements, we need to show that others owe us money
+      // The total cost is the amount we paid, but we only owe ourselves our portion
+      const totalAmount = expenseData.amount;
+      const personalAmount = expenseData.personalAmount || expenseData.amount;
+      const othersAmount = totalAmount - personalAmount;
+      
+      Logger.log(`=== SPLITWISE DEBUG ===`);
+      Logger.log(`Total Amount: ${totalAmount}`);
+      Logger.log(`Personal Amount: ${personalAmount}`);
+      Logger.log(`Others Amount: ${othersAmount}`);
+      Logger.log(`Description: ${expenseData.description}`);
+      Logger.log(`Other User ID: ${this.getSplitwiseOtherUserId()}`);
+      Logger.log(`=======================`);
+      
+      // Build form-encoded payload according to API schema
+      const payload = {
+        cost: totalAmount.toString(),
+        description: expenseData.description,
+        date: expenseData.date,
+        currency_code: expenseData.currency,
+        group_id: expenseData.groupId || this.getSplitwiseGroupId(),
+        split_equally: false, // We're providing explicit shares
+        users__0__user_id: this.currentUserId,
+        users__0__paid_share: totalAmount.toString(), // We paid the full amount
+        users__0__owed_share: personalAmount.toString() // We only owe ourselves our portion
+      };
+
+      // Add other users if specified (for more complex splits)
+      if (expenseData.otherUsers && expenseData.otherUsers.length > 0) {
+        expenseData.otherUsers.forEach((user, index) => {
+          payload[`users__${index + 1}__user_id`] = user.userId;
+          payload[`users__${index + 1}__paid_share`] = '0';
+          payload[`users__${index + 1}__owed_share`] = user.owedShare.toString();
+        });
+      } else if (othersAmount > 0) {
+        // Use configured other user ID for splitting
+        const otherUserId = this.getSplitwiseOtherUserId();
+        if (otherUserId) {
+          // The other user owes the full amount others owe
+          payload['users__1__user_id'] = otherUserId;
+          payload['users__1__paid_share'] = '0';
+          payload['users__1__owed_share'] = othersAmount.toString();
+          Logger.log(`Split ${othersAmount} with user ID: ${otherUserId}`);
+        } else {
+          Logger.log(`Note: No other user ID configured. Others owe: ${othersAmount}. Use setupSplitwiseOtherUserId() to configure user ID.`);
+        }
+      }
+      
+      Logger.log(`Final payload: ${JSON.stringify(payload)}`);
+
+      const options = {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.splitwiseApiKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        payload: Object.keys(payload).map(key => `${key}=${encodeURIComponent(payload[key])}`).join('&')
+      };
+
+      const response = UrlFetchApp.fetch(url, options);
+      
+      if (response.getResponseCode() !== 200) {
+        const errorText = response.getContentText();
+        Logger.log(`Splitwise create expense failed with status: ${response.getResponseCode()}, response: ${errorText}`);
+        return null;
+      }
+
+      const responseData = JSON.parse(response.getContentText());
+      
+      // Check for errors in the response
+      if (responseData.errors && responseData.errors.length > 0) {
+        Logger.log(`Splitwise create expense errors: ${JSON.stringify(responseData.errors)}`);
+        return null;
+      }
+      
+      if (responseData.expenses && responseData.expenses.length > 0) {
+        const expenseId = responseData.expenses[0].id;
+        Logger.log(`Created Splitwise expense with ID: ${expenseId}`);
+        return expenseId.toString();
+      } else {
+        Logger.log('No expense created in Splitwise response');
+        return null;
+      }
+
+    } catch (error) {
+      Logger.log(`Error creating Splitwise expense: ${error.message}`);
+      return null;
     }
   }
 }

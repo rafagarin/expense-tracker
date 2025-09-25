@@ -25,11 +25,7 @@ const COLUMNS = {
   COMMENT: 12,
   SETTLED_MOVEMENT_ID: 13,
   ACCOUNTING_SYSTEM: 14,
-  SPLIT_AMOUNT: 15,
-  SPLIT_CATEGORY: 16,
-  SPLIT_DESCRIPTION: 17,
-  IS_SPLIT: 18,
-  ORIGINAL_MOVEMENT_ID: 19
+  SOURCE: 15
 };
 
 // Supported currencies
@@ -72,12 +68,27 @@ const CATEGORIES = {
 // Status values
 const STATUS = {
   UNSETTLED: 'unsettled',
-  SETTLED: 'settled'
+  SETTLED: 'settled',
+  PENDING_DIRECT_SETTLEMENT: 'pending direct settlement',
+  PENDING_SPLITWISE_SETTLEMENT: 'pending splitwise settlement',
+  IN_SPLITWISE: 'in splitwise'
 };
 
 // Accounting systems
 const ACCOUNTING_SYSTEMS = {
   SPLITWISE: 'splitwise'
+};
+
+// Source values
+const SOURCES = {
+  GMAIL: 'gmail',
+  ACCOUNTING: 'accounting'
+};
+
+// Splitwise configuration
+const SPLITWISE_CONFIG = {
+  DEFAULT_GROUP_ID: 0, // Set this to your default group ID, or 0 for personal expenses
+  OTHER_USER_ID: null // User ID of the person you commonly split expenses with
 };
 
 // API Configuration

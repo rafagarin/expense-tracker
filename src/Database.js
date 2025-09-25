@@ -169,7 +169,7 @@ class Database {
   }
 
   /**
-   * Update movement with analysis results including split information
+   * Update movement with analysis results
    * @param {number} movementId - The ID of the movement to update
    * @param {Object} analysisResult - Analysis result with category and split information
    */
@@ -189,12 +189,12 @@ class Database {
     // Update category
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(analysisResult.category);
     
-    // Update split information if needed
-    if (analysisResult.needs_split) {
-      this.sheet.getRange(sheetRowIndex, COLUMNS.SPLIT_AMOUNT + 1).setValue(analysisResult.split_amount);
-      this.sheet.getRange(sheetRowIndex, COLUMNS.SPLIT_CATEGORY + 1).setValue(analysisResult.split_category);
-      this.sheet.getRange(sheetRowIndex, COLUMNS.SPLIT_DESCRIPTION + 1).setValue(analysisResult.split_description);
-      this.sheet.getRange(sheetRowIndex, COLUMNS.IS_SPLIT + 1).setValue(true);
+    // Update user description with clean description
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(analysisResult.clean_description);
+    
+    // Update comment with split instructions if available
+    if (analysisResult.split_instructions) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(analysisResult.split_instructions);
     }
     
     Logger.log(`Updated movement ID ${movementId} with analysis results: category=${analysisResult.category}, needs_split=${analysisResult.needs_split}`);
@@ -226,8 +226,8 @@ class Database {
     const sheetRowIndex = originalMovementIndex + 2;
     this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(splitInfo.split_amount);
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(splitInfo.split_description);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.IS_SPLIT + 1).setValue(true);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment for expense line
+    // Keep the original user_description (which should now be the clean description)
     
     // 2. Create the shared portion as a new debit movement
     const sharedMovement = [...originalMovement];
@@ -237,9 +237,9 @@ class Database {
     sharedMovement[COLUMNS.USER_DESCRIPTION] = originalMovement[COLUMNS.USER_DESCRIPTION];
     sharedMovement[COLUMNS.DIRECTION] = DIRECTIONS.NEUTRAL;
     sharedMovement[COLUMNS.TYPE] = MOVEMENT_TYPES.DEBIT;
-    sharedMovement[COLUMNS.STATUS] = STATUS.UNSETTLED;
-    sharedMovement[COLUMNS.IS_SPLIT] = true;
-    sharedMovement[COLUMNS.ORIGINAL_MOVEMENT_ID] = originalMovementId;
+    sharedMovement[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
+    sharedMovement[COLUMNS.SOURCE] = SOURCES.GMAIL;
+    sharedMovement[COLUMNS.COMMENT] = `Split from #${originalMovementId}`; // Reference the expense line
     
     // Add the new debit movement to the database
     this.addMovement(sharedMovement);
@@ -247,6 +247,43 @@ class Database {
     Logger.log(`Split movement ID ${originalMovementId}: modified original to personal portion (${splitInfo.split_amount}), created debit movement ${nextId} for shared portion (${remainingAmount})`);
     
     return nextId;
+  }
+
+  /**
+   * Get movements that are pending Splitwise settlement
+   * @returns {Array} Array of movements pending Splitwise settlement
+   */
+  getMovementsPendingSplitwiseSettlement() {
+    const allMovements = this.getAllMovements();
+    return allMovements.filter(movement => 
+      movement[COLUMNS.STATUS] === STATUS.PENDING_SPLITWISE_SETTLEMENT
+    );
+  }
+
+  /**
+   * Update movement with Splitwise information after pushing to Splitwise
+   * @param {number} movementId - The ID of the movement to update
+   * @param {string} splitwiseId - The Splitwise expense ID
+   */
+  updateMovementWithSplitwiseInfo(movementId, splitwiseId) {
+    // Find the row that contains the movement with the given ID
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+    
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return;
+    }
+    
+    // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
+    const sheetRowIndex = movementRowIndex + 2;
+    
+    // Update Splitwise information
+    this.sheet.getRange(sheetRowIndex, COLUMNS.ACCOUNTING_SYSTEM_ID + 1).setValue(splitwiseId);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.ACCOUNTING_SYSTEM + 1).setValue(ACCOUNTING_SYSTEMS.SPLITWISE);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(STATUS.IN_SPLITWISE);
+    
+    Logger.log(`Updated movement ID ${movementId} with Splitwise ID ${splitwiseId} and marked as in splitwise`);
   }
 
 }

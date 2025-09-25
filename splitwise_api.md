@@ -1,4 +1,6 @@
-https://secure.splitwise.com/api/v3.0/get_expenses
+# Get expenses
+
+GET https://secure.splitwise.com/api/v3.0/get_expenses
 
 List the current user's expenses
 
@@ -118,3 +120,56 @@ users
 Array of objects (share)
 comments	
 Array of objects (comment)
+
+
+# Create an expense
+
+POST https://secure.splitwise.com/api/v3.0/create_expense
+
+Creates an expense. You may either split an expense equally (only with group_id provided), or supply a list of shares.
+
+When splitting equally, the authenticated user is assumed to be the payer.
+
+When providing a list of shares, each share must include paid_share and owed_share, and must be identified by one of the following:
+
+email, first_name, and last_name
+user_id
+Note: 200 OK does not indicate a successful response. The operation was successful only if errors is empty.
+AUTHORIZATIONS:
+ApiKeyAuth
+
+REQUEST BODY SCHEMA: application/json
+required
+
+One of equal_group_splitby_shares
+cost
+required
+string
+A string representation of a decimal value, limited to 2 decimal places
+description
+required
+string
+A short description of the expense
+details	
+string or null
+Also known as "notes."
+date	
+string <date-time>
+The date and time the expense took place. May differ from created_at
+repeat_interval	
+string
+Enum: "never" "weekly" "fortnightly" "monthly" "yearly"
+currency_code	
+string
+A currency code. Must be in the list from get_currencies
+category_id	
+integer
+A category id from get_categories
+group_id
+required
+integer
+The group to put this expense in.
+split_equally
+required
+boolean
+Value: true

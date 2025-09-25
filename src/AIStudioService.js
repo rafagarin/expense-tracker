@@ -216,6 +216,8 @@ If you cannot extract any of these fields, set them to null. Only return valid J
 
 User Description: "${userDescription}"
 
+Note: The description above may include both the main description and any comments/instructions. Look for split instructions in both parts.
+
 Additional Context:
 - Amount: ${amount ? `${currency} ${amount}` : 'Not provided'}
 - Source Description: ${sourceDescription || 'Not provided'}
@@ -234,11 +236,13 @@ Available Categories (choose ONLY one):
 - miscellaneous: Everything else that doesn't fit the above categories
 
 Split Analysis:
-Determine if this expense should be split into two parts. Look for indicators like:
+Determine if this expense should be split into two parts. Look for indicators in both the main description and any comments/instructions:
 - "split with", "shared with", "paid for group", "dinner with friends"
 - "my part", "their part", "half", "portion"
+- "dividir", "compartir", "mitad" (Spanish split indicators)
 - References to other people or splitting costs
 - Group activities where only part of the cost is personal
+- Instructions in comments like "dividir" or "split"
 
 Rules for categorization:
 1. Choose the category that best represents the primary purpose of the expense
@@ -256,10 +260,13 @@ Return a JSON object with the following structure:
   "needs_split": true/false,
   "split_amount": number (only if needs_split is true, the amount for the personal portion),
   "split_category": "category_name" (only if needs_split is true, category for the personal portion),
-  "split_description": "description" (only if needs_split is true, description for the personal portion)
+  "clean_description": "clean description without split instructions",
+  "split_instructions": "split instructions or comments"
 }
 
-If needs_split is true, split_amount should be the amount that represents the user's personal portion of the expense.`;
+If needs_split is true, split_amount should be the amount that represents the user's personal portion of the expense.
+The clean_description should be the main description without any split-related instructions.
+The split_instructions should contain any split-related instructions or comments.`;
   }
 
   /**
@@ -308,7 +315,7 @@ If needs_split is true, split_amount should be the amount that represents the us
 
       // If needs_split is true, validate split fields
       if (parsedData.needs_split === true) {
-        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_category || !parsedData.split_description) {
+        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_category) {
           Logger.log('Invalid split data in response');
           Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
           return null;
@@ -326,7 +333,8 @@ If needs_split is true, split_amount should be the amount that represents the us
         needs_split: parsedData.needs_split === true,
         split_amount: parsedData.split_amount || null,
         split_category: parsedData.split_category || null,
-        split_description: parsedData.split_description || null
+        clean_description: parsedData.clean_description || parsedData.category,
+        split_instructions: parsedData.split_instructions || null
       };
     } catch (error) {
       Logger.log(`Error parsing category analysis response: ${error.message}`);
