@@ -322,9 +322,14 @@ class ExpenseTracker {
       Logger.log(`Found ${creditMovements.length} credit movement(s) and ${debitMovements.length} debit movement(s) from Splitwise`);
 
       // 4. Filter out movements that already exist (idempotency)
-      const newMovements = allMovements.filter(movement => 
-        !existingAccountingSystemIds.has(movement.splitwiseId)
-      );
+      const newMovements = allMovements.filter(movement => {
+        const splitwiseIdStr = movement.splitwiseId.toString();
+        const exists = existingAccountingSystemIds.has(splitwiseIdStr);
+        if (exists) {
+          Logger.log(`Skipping movement ${splitwiseIdStr} - already exists in database`);
+        }
+        return !exists;
+      });
 
       if (newMovements.length === 0) {
         Logger.log('All Splitwise movements already exist in database.');

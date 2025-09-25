@@ -56,7 +56,9 @@ class Database {
       
       accountingSystemIdValues.forEach(row => {
         if (row[0]) {
-          existingAccountingSystemIds.add(row[0]);
+          const idStr = row[0].toString();
+          existingAccountingSystemIds.add(idStr);
+          Logger.log(`Found existing accounting system ID: ${idStr} (type: ${typeof idStr})`);
         }
       });
     }

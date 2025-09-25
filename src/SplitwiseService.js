@@ -167,7 +167,13 @@ class SplitwiseService {
 
     for (const expense of expenses) {
       Logger.log(`Processing expense ${expense.id}: ${expense.description}`);
-      Logger.log(`Payment: ${expense.payment}, Repayments: ${expense.repayments ? expense.repayments.length : 0}`);
+      Logger.log(`Payment: ${expense.payment}, Repayments: ${expense.repayments ? expense.repayments.length : 0}, Deleted: ${expense.deleted_at}`);
+      
+      // Skip deleted expenses
+      if (expense.deleted_at) {
+        Logger.log(`Skipping expense ${expense.id} - it's deleted`);
+        continue;
+      }
       
       // Skip repayments (expenses marked as payments between users)
       if (expense.payment === true) {
@@ -220,6 +226,13 @@ class SplitwiseService {
 
     for (const expense of expenses) {
       Logger.log(`Processing expense ${expense.id} for debit movements: ${expense.description}`);
+      Logger.log(`Payment: ${expense.payment}, Deleted: ${expense.deleted_at}`);
+      
+      // Skip deleted expenses
+      if (expense.deleted_at) {
+        Logger.log(`Skipping expense ${expense.id} - it's deleted`);
+        continue;
+      }
       
       // Skip repayments (expenses marked as payments between users)
       if (expense.payment === true) {
