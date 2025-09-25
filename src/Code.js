@@ -10,6 +10,8 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('Expense Tracker')
+    .addItem('Run All (Main)', 'main')
+    .addSeparator()
     .addItem('Process From Bank Emails', 'processBankEmails')
     .addItem('Process From Splitwise', 'processSplitwise')
     .addItem('Analyze Movements', 'analyzeMovements')
@@ -52,6 +54,39 @@ async function processSplitwise() {
 async function pushToSplitwise() {
   const expenseTracker = new ExpenseTracker();
   await expenseTracker.pushToSplitwise();
+}
+
+/**
+ * Main function that performs all expense tracking actions with proper conditions
+ * This is the primary entry point that orchestrates the entire workflow
+ */
+async function main() {
+  try {
+    Logger.log('Starting main expense tracking workflow...');
+    const expenseTracker = new ExpenseTracker();
+    
+    // Step 1: Process bank emails (with idempotency - only new emails)
+    Logger.log('=== Step 1: Processing bank emails ===');
+    await expenseTracker.processBankEmails();
+    
+    // Step 2: Process Splitwise movements (with idempotency - only new movements)
+    Logger.log('=== Step 2: Processing Splitwise movements ===');
+    await expenseTracker.processSplitwiseMovements();
+    
+    // Step 3: Analyze movements with AI (only movements with user_description)
+    Logger.log('=== Step 3: Analyzing movements with AI ===');
+    await expenseTracker.processUncategorizedMovements();
+    
+    // Step 4: Push to Splitwise (only movements with "pending splitwise settlement" status)
+    Logger.log('=== Step 4: Pushing to Splitwise ===');
+    await expenseTracker.pushToSplitwise();
+    
+    Logger.log('Main expense tracking workflow completed successfully.');
+    
+  } catch (error) {
+    Logger.log(`Error in main workflow: ${error.message}`);
+    throw error;
+  }
 }
 
 
