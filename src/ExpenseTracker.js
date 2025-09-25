@@ -92,6 +92,72 @@ class ExpenseTracker {
   }
 
   /**
+   * Process movements that have user_description but no category
+   * Uses AI to analyze and categorize movements automatically
+   */
+  async processUncategorizedMovements() {
+    try {
+      Logger.log('Starting uncategorized movements processing...');
+
+      // 1. Get movements that need category analysis
+      const uncategorizedMovements = this.database.getMovementsNeedingCategoryAnalysis();
+
+      if (uncategorizedMovements.length === 0) {
+        Logger.log('No movements need category analysis.');
+        return;
+      }
+
+      Logger.log(`Found ${uncategorizedMovements.length} movement(s) needing category analysis.`);
+
+      // 2. Process each movement
+      let processedCount = 0;
+      let errorCount = 0;
+
+      for (const movement of uncategorizedMovements) {
+        try {
+          const movementId = movement[COLUMNS.ID];
+          const userDescription = movement[COLUMNS.USER_DESCRIPTION];
+          
+          // Prepare movement context for AI analysis
+          const movementData = {
+            amount: movement[COLUMNS.AMOUNT],
+            currency: movement[COLUMNS.CURRENCY],
+            sourceDescription: movement[COLUMNS.SOURCE_DESCRIPTION],
+            type: movement[COLUMNS.TYPE],
+            direction: movement[COLUMNS.DIRECTION]
+          };
+
+          // 3. Use AI to analyze the category
+          const suggestedCategory = await this.googleAIStudioService.analyzeCategory(userDescription, movementData);
+
+          if (suggestedCategory) {
+            // 4. Update the movement with the suggested category
+            this.database.updateMovementCategory(movementId, suggestedCategory);
+            processedCount++;
+            Logger.log(`Categorized movement ID ${movementId}: "${userDescription}" -> ${suggestedCategory}`);
+          } else {
+            Logger.log(`Could not categorize movement ID ${movementId}: "${userDescription}"`);
+            errorCount++;
+          }
+
+          // Add a small delay to avoid hitting API rate limits
+          Utilities.sleep(1000);
+
+        } catch (error) {
+          Logger.log(`Error processing movement ID ${movement[COLUMNS.ID]}: ${error.message}`);
+          errorCount++;
+        }
+      }
+
+      Logger.log(`Category analysis complete. Processed: ${processedCount}, Errors: ${errorCount}`);
+
+    } catch (error) {
+      Logger.log(`Error processing uncategorized movements: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Create a movement row for the database from parsed transaction data
    * @param {Object} transaction - Parsed transaction object
    * @param {number} nextId - Next available ID for the movement

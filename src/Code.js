@@ -11,6 +11,7 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('Expense Tracker')
     .addItem('Process Bank Emails', 'processBankEmails')
+    .addItem('Analyze Categories', 'analyzeCategories')
     .addToUi();
 }
 
@@ -50,6 +51,15 @@ function getMovementsByGmailId(gmailId) {
 function getMovementsByAccountingSystemId(accountingSystemId) {
   const expenseTracker = new ExpenseTracker();
   return expenseTracker.getMovementsByAccountingSystemId(accountingSystemId);
+}
+
+/**
+ * Analyze categories for movements that have user_description but no category
+ * This function uses AI to automatically categorize movements
+ */
+async function analyzeCategories() {
+  const expenseTracker = new ExpenseTracker();
+  await expenseTracker.processUncategorizedMovements();
 }
 
 /**

@@ -109,4 +109,40 @@ class Database {
     const allMovements = this.getAllMovements();
     return allMovements.filter(movement => movement[COLUMNS.ACCOUNTING_SYSTEM_ID] === accountingSystemId);
   }
+
+  /**
+   * Get movements that have user_description but no category
+   * @returns {Array} Array of movements needing category analysis
+   */
+  getMovementsNeedingCategoryAnalysis() {
+    const allMovements = this.getAllMovements();
+    return allMovements.filter(movement => {
+      const hasUserDescription = movement[COLUMNS.USER_DESCRIPTION] && movement[COLUMNS.USER_DESCRIPTION].trim() !== '';
+      const hasNoCategory = !movement[COLUMNS.CATEGORY] || movement[COLUMNS.CATEGORY].trim() === '';
+      return hasUserDescription && hasNoCategory;
+    });
+  }
+
+  /**
+   * Update the category for a specific movement by ID
+   * @param {number} movementId - The ID of the movement to update
+   * @param {string} category - The new category value
+   */
+  updateMovementCategory(movementId, category) {
+    // Find the row that contains the movement with the given ID
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+    
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return;
+    }
+    
+    // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
+    const sheetRowIndex = movementRowIndex + 2;
+    const categoryColumn = COLUMNS.CATEGORY + 1; // Convert to 1-based column index
+    
+    this.sheet.getRange(sheetRowIndex, categoryColumn).setValue(category);
+    Logger.log(`Updated category for movement ID ${movementId} (row ${sheetRowIndex}) to: ${category}`);
+  }
 }
