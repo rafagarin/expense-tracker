@@ -396,22 +396,22 @@ class ExpenseTracker {
     const status = null;
 
     return [
+      userDescription,                           // user_description
+      null,                                      // comment
+      timestamp,                                 // timestamp
+      SOURCES.ACCOUNTING,                        // source
+      splitwiseMovement.amount,                  // amount
+      splitwiseMovement.currency,                // currency
+      splitwiseMovement.description,             // source_description
+      direction,                                 // direction
+      type,                                      // type
+      splitwiseMovement.category,                // category
+      status,                                    // status (settled or unsettled)
       nextId,                                    // id
       null,                                      // gmail_id
       splitwiseMovement.splitwiseId,             // accounting_system_id
-      timestamp,                                 // timestamp
-      splitwiseMovement.amount,                  // amount
-      splitwiseMovement.currency,                // currency
-      splitwiseMovement.description,                // source_description
-      userDescription,                           // user_description
-      splitwiseMovement.category,                // category
-      direction,                                 // direction
-      type,                                      // type
-      status,                                    // status (settled or unsettled)
-      null,                                      // comment
-      null,                                      // settled_movement_id
       ACCOUNTING_SYSTEMS.SPLITWISE,              // accounting_system
-      SOURCES.ACCOUNTING                         // source
+      null                                       // settled_movement_id
     ];
   }
 
@@ -429,22 +429,22 @@ class ExpenseTracker {
     const status = this.getStatusForTransactionType(transaction.transactionType);
 
     return [
-      nextId,                                    // id
-      transaction.gmailId,                       // gmail_id
-      null,                                      // accounting_system_id
+      null,                                      // user_description
+      null,                                      // comment
       transaction.timestamp,                     // timestamp
+      SOURCES.GMAIL,                             // source
       transaction.amount,                        // amount
       transaction.currency,                      // currency
       transaction.sourceDescription,             // source_description
-      null,                                      // user_description
-      null,                                      // category
       direction,                                 // direction
       transaction.transactionType,               // type
+      null,                                      // category
       status,                                    // status
-      null,                                      // comment
-      null,                                      // settled_movement_id
+      nextId,                                    // id
+      transaction.gmailId,                       // gmail_id
+      null,                                      // accounting_system_id
       null,                                      // accounting_system
-      SOURCES.GMAIL                              // source
+      null                                       // settled_movement_id
     ];
   }
 

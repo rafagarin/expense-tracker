@@ -10,22 +10,22 @@ const GMAIL_QUERY = 'label:Expenses newer_than:5d';
 
 // Database column indices (0-based)
 const COLUMNS = {
-  ID: 0,
-  GMAIL_ID: 1,
-  ACCOUNTING_SYSTEM_ID: 2,
-  TIMESTAMP: 3,
+  USER_DESCRIPTION: 0,
+  COMMENT: 1,
+  TIMESTAMP: 2,
+  SOURCE: 3,
   AMOUNT: 4,
   CURRENCY: 5,
   SOURCE_DESCRIPTION: 6,
-  USER_DESCRIPTION: 7,
-  CATEGORY: 8,
-  DIRECTION: 9,
-  TYPE: 10,
-  STATUS: 11,
-  COMMENT: 12,
-  SETTLED_MOVEMENT_ID: 13,
+  DIRECTION: 7,
+  TYPE: 8,
+  CATEGORY: 9,
+  STATUS: 10,
+  ID: 11,
+  GMAIL_ID: 12,
+  ACCOUNTING_SYSTEM_ID: 13,
   ACCOUNTING_SYSTEM: 14,
-  SOURCE: 15
+  SETTLED_MOVEMENT_ID: 15
 };
 
 // Supported currencies
