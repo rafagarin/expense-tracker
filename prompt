@@ -84,6 +84,7 @@ To set up the project:
 - Copy the spreadsheet
 - Copy the code
 - Add values for `GOOGLE_AI_STUDIO_API_KEY`, `SPLITWISE_API_KEY`, `SPLITWISE_GROUP_ID`, `SPLITWISE_OTHER_USER_ID`
+- Use [clasp](https://github.com/google/clasp) to push updates to the code
 
 
 ### Pending
