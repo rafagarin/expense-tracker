@@ -167,4 +167,86 @@ class Database {
     this.sheet.getRange(sheetRowIndex, categoryColumn).setValue(category);
     Logger.log(`Updated category for movement ID ${movementId} (row ${sheetRowIndex}) to: ${category}`);
   }
+
+  /**
+   * Update movement with analysis results including split information
+   * @param {number} movementId - The ID of the movement to update
+   * @param {Object} analysisResult - Analysis result with category and split information
+   */
+  updateMovementWithAnalysis(movementId, analysisResult) {
+    // Find the row that contains the movement with the given ID
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+    
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return;
+    }
+    
+    // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
+    const sheetRowIndex = movementRowIndex + 2;
+    
+    // Update category
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(analysisResult.category);
+    
+    // Update split information if needed
+    if (analysisResult.needs_split) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.SPLIT_AMOUNT + 1).setValue(analysisResult.split_amount);
+      this.sheet.getRange(sheetRowIndex, COLUMNS.SPLIT_CATEGORY + 1).setValue(analysisResult.split_category);
+      this.sheet.getRange(sheetRowIndex, COLUMNS.SPLIT_DESCRIPTION + 1).setValue(analysisResult.split_description);
+      this.sheet.getRange(sheetRowIndex, COLUMNS.IS_SPLIT + 1).setValue(true);
+    }
+    
+    Logger.log(`Updated movement ID ${movementId} with analysis results: category=${analysisResult.category}, needs_split=${analysisResult.needs_split}`);
+  }
+
+  /**
+   * Split a movement by modifying the original row and creating a new debit row
+   * @param {number} originalMovementId - The ID of the original movement to split
+   * @param {Object} splitInfo - Split information from AI analysis
+   * @returns {number} The ID of the new debit movement
+   */
+  splitMovement(originalMovementId, splitInfo) {
+    // Get the original movement
+    const allMovements = this.getAllMovements();
+    const originalMovementIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === originalMovementId);
+    
+    if (originalMovementIndex === -1) {
+      Logger.log(`Original movement with ID ${originalMovementId} not found in database`);
+      return null;
+    }
+    
+    const originalMovement = allMovements[originalMovementIndex];
+    const nextId = this.getNextId();
+    
+    // Calculate the remaining amount (original - split amount)
+    const remainingAmount = originalMovement[COLUMNS.AMOUNT] - splitInfo.split_amount;
+    
+    // 1. Modify the original row in place to be the personal portion
+    const sheetRowIndex = originalMovementIndex + 2;
+    this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(splitInfo.split_amount);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(splitInfo.split_description);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.IS_SPLIT + 1).setValue(true);
+    
+    // 2. Create the shared portion as a new debit movement
+    const sharedMovement = [...originalMovement];
+    sharedMovement[COLUMNS.ID] = nextId;
+    sharedMovement[COLUMNS.AMOUNT] = remainingAmount;
+    sharedMovement[COLUMNS.CATEGORY] = originalMovement[COLUMNS.CATEGORY];
+    sharedMovement[COLUMNS.USER_DESCRIPTION] = originalMovement[COLUMNS.USER_DESCRIPTION];
+    sharedMovement[COLUMNS.DIRECTION] = DIRECTIONS.NEUTRAL;
+    sharedMovement[COLUMNS.TYPE] = MOVEMENT_TYPES.DEBIT;
+    sharedMovement[COLUMNS.STATUS] = STATUS.UNSETTLED;
+    sharedMovement[COLUMNS.IS_SPLIT] = true;
+    sharedMovement[COLUMNS.ORIGINAL_MOVEMENT_ID] = originalMovementId;
+    
+    // Add the new debit movement to the database
+    this.addMovement(sharedMovement);
+    
+    Logger.log(`Split movement ID ${originalMovementId}: modified original to personal portion (${splitInfo.split_amount}), created debit movement ${nextId} for shared portion (${remainingAmount})`);
+    
+    return nextId;
+  }
+
 }

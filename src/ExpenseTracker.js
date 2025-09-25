@@ -94,11 +94,11 @@ class ExpenseTracker {
 
   /**
    * Process movements that have user_description but no category
-   * Uses AI to analyze and categorize movements automatically
+   * Uses AI to analyze and categorize movements automatically, and splits them if needed
    */
   async processUncategorizedMovements() {
     try {
-      Logger.log('Starting uncategorized movements processing...');
+      Logger.log('Starting AI analysis and split processing...');
 
       // 1. Get movements that need category analysis
       const uncategorizedMovements = this.database.getMovementsNeedingCategoryAnalysis();
@@ -111,7 +111,8 @@ class ExpenseTracker {
       Logger.log(`Found ${uncategorizedMovements.length} movement(s) needing category analysis.`);
 
       // 2. Process each movement
-      let processedCount = 0;
+      let analyzedCount = 0;
+      let splitCount = 0;
       let errorCount = 0;
 
       for (const movement of uncategorizedMovements) {
@@ -128,16 +129,35 @@ class ExpenseTracker {
             direction: movement[COLUMNS.DIRECTION]
           };
 
-          // 3. Use AI to analyze the category
-          const suggestedCategory = await this.googleAIStudioService.analyzeCategory(userDescription, movementData);
+          // 3. Use AI to analyze the category and split requirements
+          const analysisResult = await this.googleAIStudioService.analyzeCategory(userDescription, movementData);
 
-          if (suggestedCategory) {
-            // 4. Update the movement with the suggested category
-            this.database.updateMovementCategory(movementId, suggestedCategory);
-            processedCount++;
-            Logger.log(`Categorized movement ID ${movementId}: "${userDescription}" -> ${suggestedCategory}`);
+          if (analysisResult) {
+            // 4. Update the movement with the analysis results
+            this.database.updateMovementWithAnalysis(movementId, analysisResult);
+            analyzedCount++;
+            Logger.log(`Analyzed movement ID ${movementId}: "${userDescription}" -> category: ${analysisResult.category}, needs_split: ${analysisResult.needs_split}`);
+
+            // 5. If the movement needs to be split, split it immediately
+            if (analysisResult.needs_split) {
+              const splitInfo = {
+                split_amount: analysisResult.split_amount,
+                split_category: analysisResult.split_category,
+                split_description: analysisResult.split_description
+              };
+
+              const newDebitMovementId = this.database.splitMovement(movementId, splitInfo);
+              
+              if (newDebitMovementId) {
+                splitCount++;
+                Logger.log(`Split movement ID ${movementId}: modified original to personal portion, created debit movement ${newDebitMovementId} for shared portion`);
+              } else {
+                Logger.log(`Failed to split movement ID ${movementId}`);
+                errorCount++;
+              }
+            }
           } else {
-            Logger.log(`Could not categorize movement ID ${movementId}: "${userDescription}"`);
+            Logger.log(`Could not analyze movement ID ${movementId}: "${userDescription}"`);
             errorCount++;
           }
 
@@ -150,13 +170,14 @@ class ExpenseTracker {
         }
       }
 
-      Logger.log(`Category analysis complete. Processed: ${processedCount}, Errors: ${errorCount}`);
+      Logger.log(`AI analysis and split processing complete. Analyzed: ${analyzedCount}, Split: ${splitCount}, Errors: ${errorCount}`);
 
     } catch (error) {
       Logger.log(`Error processing uncategorized movements: ${error.message}`);
       throw error;
     }
   }
+
 
   /**
    * Process Splitwise movements and add them to the database
@@ -278,7 +299,12 @@ class ExpenseTracker {
       status,                                    // status (settled or unsettled)
       null,                                      // comment
       null,                                      // settled_movement_id
-      ACCOUNTING_SYSTEMS.SPLITWISE               // accounting_system
+      ACCOUNTING_SYSTEMS.SPLITWISE,              // accounting_system
+      null,                                      // split_amount
+      null,                                      // split_category
+      null,                                      // split_description
+      false,                                     // is_split
+      null                                       // original_movement_id
     ];
   }
 
@@ -310,7 +336,12 @@ class ExpenseTracker {
       status,                                    // status
       null,                                      // comment
       null,                                      // settled_movement_id
-      null                                       // accounting_system
+      null,                                      // accounting_system
+      null,                                      // split_amount
+      null,                                      // split_category
+      null,                                      // split_description
+      false,                                     // is_split
+      null                                       // original_movement_id
     ];
   }
 

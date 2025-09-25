@@ -55,8 +55,8 @@ function getMovementsByAccountingSystemId(accountingSystemId) {
 }
 
 /**
- * Analyze categories for movements that have user_description but no category
- * This function uses AI to automatically categorize movements
+ * Analyze categories and process splits for movements that have user_description but no category
+ * This function uses AI to automatically categorize movements and split them if needed
  */
 async function analyzeCategories() {
   const expenseTracker = new ExpenseTracker();

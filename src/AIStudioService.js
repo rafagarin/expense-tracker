@@ -182,10 +182,10 @@ If you cannot extract any of these fields, set them to null. Only return valid J
   }
 
   /**
-   * Analyze user description and determine the appropriate category
+   * Analyze user description and determine the appropriate category and split information
    * @param {string} userDescription - The user-provided description
    * @param {Object} movementData - Additional movement context (amount, source_description, etc.)
-   * @returns {string|null} The suggested category or null if analysis fails
+   * @returns {Object|null} Analysis result with category and split information or null if analysis fails
    */
   async analyzeCategory(userDescription, movementData = {}) {
     try {
@@ -212,7 +212,7 @@ If you cannot extract any of these fields, set them to null. Only return valid J
   createCategoryAnalysisPrompt(userDescription, movementData) {
     const { amount, currency, sourceDescription, type, direction } = movementData;
     
-    return `You are an expert at categorizing personal expenses. Analyze the following user description and determine the most appropriate category.
+    return `You are an expert at categorizing personal expenses and determining if they need to be split. Analyze the following user description and determine the most appropriate category and split information.
 
 User Description: "${userDescription}"
 
@@ -233,6 +233,13 @@ Available Categories (choose ONLY one):
 - work: Business expenses, work supplies, professional development, work meals
 - miscellaneous: Everything else that doesn't fit the above categories
 
+Split Analysis:
+Determine if this expense should be split into two parts. Look for indicators like:
+- "split with", "shared with", "paid for group", "dinner with friends"
+- "my part", "their part", "half", "portion"
+- References to other people or splitting costs
+- Group activities where only part of the cost is personal
+
 Rules for categorization:
 1. Choose the category that best represents the primary purpose of the expense
 2. If it could fit multiple categories, choose the most specific one
@@ -243,13 +250,22 @@ Rules for categorization:
 7. For transportation costs, use "transportation"
 8. When in doubt, choose "miscellaneous"
 
-Return ONLY the category name (e.g., "food", "transportation", "housing") - no additional text or explanation.`;
+Return a JSON object with the following structure:
+{
+  "category": "category_name",
+  "needs_split": true/false,
+  "split_amount": number (only if needs_split is true, the amount for the personal portion),
+  "split_category": "category_name" (only if needs_split is true, category for the personal portion),
+  "split_description": "description" (only if needs_split is true, description for the personal portion)
+}
+
+If needs_split is true, split_amount should be the amount that represents the user's personal portion of the expense.`;
   }
 
   /**
    * Parse the Google AI Studio response for category analysis
    * @param {Object} apiResponse - The full API response object
-   * @returns {string|null} The suggested category or null if parsing fails
+   * @returns {Object|null} Analysis result with category and split information or null if parsing fails
    */
   parseCategoryAnalysisResponse(apiResponse) {
     try {
@@ -258,23 +274,60 @@ Return ONLY the category name (e.g., "food", "transportation", "housing") - no a
         return null;
       }
 
-      const textContent = apiResponse.candidates[0].content.parts[0].text.trim().toLowerCase();
+      const textContent = apiResponse.candidates[0].content.parts[0].text.trim();
       
-      // Validate that the response is one of our valid categories
-      const validCategories = Object.values(CATEGORIES);
-      if (validCategories.includes(textContent)) {
-        return textContent;
+      // Try to parse the text content as JSON
+      let parsedData;
+      try {
+        // Clean the response to extract JSON
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          Logger.log('No JSON found in category analysis response text');
+          return null;
+        }
+        parsedData = JSON.parse(jsonMatch[0]);
+      } catch (jsonError) {
+        Logger.log(`Failed to parse JSON from category analysis response: ${jsonError.message}`);
+        Logger.log(`Category analysis response text: ${textContent}`);
+        return null;
       }
       
-      // Try to find a valid category in the response text
-      for (const category of validCategories) {
-        if (textContent.includes(category)) {
-          return category;
+      // Validate required fields
+      if (!parsedData.category) {
+        Logger.log('Missing required category field in analysis response');
+        Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
+        return null;
+      }
+
+      // Validate that the category is one of our valid categories
+      const validCategories = Object.values(CATEGORIES);
+      if (!validCategories.includes(parsedData.category)) {
+        Logger.log(`Invalid category in response: ${parsedData.category}`);
+        return null;
+      }
+
+      // If needs_split is true, validate split fields
+      if (parsedData.needs_split === true) {
+        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_category || !parsedData.split_description) {
+          Logger.log('Invalid split data in response');
+          Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
+          return null;
+        }
+
+        // Validate split category
+        if (!validCategories.includes(parsedData.split_category)) {
+          Logger.log(`Invalid split category in response: ${parsedData.split_category}`);
+          return null;
         }
       }
-      
-      Logger.log(`Invalid category response: ${textContent}`);
-      return null;
+
+      return {
+        category: parsedData.category,
+        needs_split: parsedData.needs_split === true,
+        split_amount: parsedData.split_amount || null,
+        split_category: parsedData.split_category || null,
+        split_description: parsedData.split_description || null
+      };
     } catch (error) {
       Logger.log(`Error parsing category analysis response: ${error.message}`);
       return null;
