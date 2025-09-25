@@ -44,6 +44,28 @@ class Database {
   }
 
   /**
+   * Get existing accounting system IDs for idempotency checking
+   * @returns {Set} Set of existing accounting system IDs
+   */
+  getExistingAccountingSystemIds() {
+    const existingAccountingSystemIds = new Set();
+    
+    if (this.sheet.getLastRow() > 1) {
+      const accountingSystemIdRange = this.sheet.getRange(2, COLUMNS.ACCOUNTING_SYSTEM_ID + 1, this.sheet.getLastRow() - 1, 1);
+      const accountingSystemIdValues = accountingSystemIdRange.getValues();
+      
+      accountingSystemIdValues.forEach(row => {
+        if (row[0]) {
+          existingAccountingSystemIds.add(row[0]);
+        }
+      });
+    }
+    
+    Logger.log(`Found ${existingAccountingSystemIds.size} existing accounting system movement(s) in the sheet.`);
+    return existingAccountingSystemIds;
+  }
+
+  /**
    * Add a new movement to the database
    * @param {Array} movementRow - Array representing the movement data
    */

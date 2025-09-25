@@ -82,6 +82,11 @@ const API_CONFIG = {
     BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
     MODEL: 'gemini-2.0-flash',
     API_KEY_PROPERTY: 'GOOGLE_AI_STUDIO_API_KEY'
+  },
+  // Splitwise API configuration
+  SPLITWISE: {
+    BASE_URL: 'https://secure.splitwise.com/api/v3.0',
+    API_KEY_PROPERTY: 'SPLITWISE_API_KEY'
   }
 };
 

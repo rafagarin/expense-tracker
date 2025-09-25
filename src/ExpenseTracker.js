@@ -7,6 +7,7 @@ class ExpenseTracker {
     this.database = new Database();
     this.gmailService = new GmailService();
     this.googleAIStudioService = new GoogleAIStudioService();
+    this.splitwiseService = new SplitwiseService();
   }
 
   /**
@@ -155,6 +156,130 @@ class ExpenseTracker {
       Logger.log(`Error processing uncategorized movements: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Process Splitwise movements and add them to the database
+   * Uses Splitwise API to fetch both credit and debit movements
+   */
+  async processSplitwiseMovements() {
+    try {
+      Logger.log('Starting Splitwise movements processing...');
+
+      // 1. Test Splitwise connection first
+      const connectionTest = await this.splitwiseService.testConnection();
+      if (!connectionTest) {
+        Logger.log('Splitwise connection test failed. Please check your API key.');
+        return;
+      }
+
+      // 2. Get existing accounting system IDs for idempotency check
+      const existingAccountingSystemIds = this.database.getExistingAccountingSystemIds();
+
+      // 3. Get both credit and debit movements from Splitwise
+      const creditMovements = await this.splitwiseService.getCreditMovements();
+      const debitMovements = await this.splitwiseService.getDebitMovements();
+
+      const allMovements = [...creditMovements, ...debitMovements];
+
+      if (allMovements.length === 0) {
+        Logger.log('No Splitwise movements found.');
+        return;
+      }
+
+      Logger.log(`Found ${creditMovements.length} credit movement(s) and ${debitMovements.length} debit movement(s) from Splitwise`);
+
+      // 4. Filter out movements that already exist (idempotency)
+      const newMovements = allMovements.filter(movement => 
+        !existingAccountingSystemIds.has(movement.splitwiseId)
+      );
+
+      if (newMovements.length === 0) {
+        Logger.log('All Splitwise movements already exist in database.');
+        return;
+      }
+
+      Logger.log(`${newMovements.length} new movement(s) to add from Splitwise`);
+
+      // 5. Convert Splitwise movements to our database format and add them
+      let nextId = this.database.getNextId();
+      const batchMovements = [];
+
+      for (const movement of newMovements) {
+        const movementRow = this.createSplitwiseMovementRow(movement, nextId);
+        batchMovements.push({
+          ts: movement.date,
+          row: movementRow,
+          accountingSystemId: movement.splitwiseId
+        });
+        nextId++;
+      }
+
+      // 6. Add all movements to the database
+      if (batchMovements.length > 0) {
+        this.database.addMovementsBatch(batchMovements);
+        Logger.log(`Successfully processed ${batchMovements.length} Splitwise movement(s).`);
+      }
+
+    } catch (error) {
+      Logger.log(`Error processing Splitwise movements: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a movement row for the database from Splitwise movement data
+   * @param {Object} splitwiseMovement - Splitwise movement object
+   * @param {number} nextId - Next available ID for the movement
+   * @returns {Array} Movement row array for database insertion
+   */
+  createSplitwiseMovementRow(splitwiseMovement, nextId) {
+    // Convert Splitwise date to ISO format
+    const timestamp = new Date(splitwiseMovement.date).toISOString();
+
+    // Determine if this is a credit or debit movement
+    const isCreditMovement = splitwiseMovement.paidBy !== undefined;
+    const isDebitMovement = splitwiseMovement.owedBy !== undefined;
+
+    let direction, type, userDescription;
+
+    if (isCreditMovement) {
+      // Credit movement: someone paid for me, I owe them
+      direction = DIRECTIONS.OUTFLOW; // Money will leave my account
+      type = MOVEMENT_TYPES.CREDIT;
+      userDescription = null; // Will be filled by user later
+    } else if (isDebitMovement) {
+      // Debit movement: I paid for others, they owe me
+      direction = DIRECTIONS.NEUTRAL; // Neutral because the actual expense is tracked separately
+      type = MOVEMENT_TYPES.DEBIT_REPAYMENT;
+      userDescription = null; // Will be filled by user later
+    } else {
+      // Fallback (shouldn't happen)
+      direction = DIRECTIONS.OUTFLOW;
+      type = MOVEMENT_TYPES.EXPENSE;
+      userDescription = null;
+    }
+
+    // Don't set status for Splitwise movements
+    const status = null;
+
+    return [
+      nextId,                                    // id
+      null,                                      // gmail_id
+      splitwiseMovement.splitwiseId,             // accounting_system_id
+      timestamp,                                 // timestamp
+      splitwiseMovement.amount,                  // amount
+      splitwiseMovement.currency,                // currency
+      splitwiseMovement.description,                // source_description
+      userDescription,                           // user_description
+      splitwiseMovement.category,                // category
+      direction,                                 // direction
+      type,                                      // type
+      status,                                    // status (settled or unsettled)
+      null,                                      // comment
+      null,                                      // settled_movement_id
+      ACCOUNTING_SYSTEMS.SPLITWISE               // accounting_system
+    ];
   }
 
   /**

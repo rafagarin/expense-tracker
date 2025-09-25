@@ -12,6 +12,7 @@ function onOpen() {
   ui.createMenu('Expense Tracker')
     .addItem('Process Bank Emails', 'processBankEmails')
     .addItem('Analyze Categories', 'analyzeCategories')
+    .addItem('Process Splitwise', 'processSplitwise')
     .addToUi();
 }
 
@@ -63,6 +64,15 @@ async function analyzeCategories() {
 }
 
 /**
+ * Process Splitwise credit movements and add them to the database
+ * This function fetches credit movements from Splitwise API
+ */
+async function processSplitwise() {
+  const expenseTracker = new ExpenseTracker();
+  await expenseTracker.processSplitwiseMovements();
+}
+
+/**
  * Set up Google AI Studio API key
  * Call this function once to securely store your API key
  * @param {string} apiKey - Your Google AI Studio API key
@@ -70,5 +80,15 @@ async function analyzeCategories() {
 function setupGoogleAIStudioAPIKey(apiKey) {
   setApiKey(API_CONFIG.GOOGLE_AI_STUDIO.API_KEY_PROPERTY, apiKey);
   Logger.log('Google AI Studio API key has been stored securely.');
+}
+
+/**
+ * Set up Splitwise API key
+ * Call this function once to securely store your API key
+ * @param {string} apiKey - Your Splitwise API key
+ */
+function setupSplitwiseAPIKey(apiKey) {
+  setApiKey(API_CONFIG.SPLITWISE.API_KEY_PROPERTY, apiKey);
+  Logger.log('Splitwise API key has been stored securely.');
 }
 
