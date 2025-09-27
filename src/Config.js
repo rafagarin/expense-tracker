@@ -6,7 +6,7 @@
 const SPREADSHEET_TAB_NAME = 'Movements';
 
 // Gmail search configuration
-const GMAIL_QUERY = 'label:Expenses newer_than:5d';
+const GMAIL_QUERY = '(label:expenses newer_than:8d) OR label:expenses/manual ';
 
 // Database column indices (0-based)
 const COLUMNS = {
