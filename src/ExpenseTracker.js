@@ -8,6 +8,7 @@ class ExpenseTracker {
     this.gmailService = new GmailService();
     this.googleAIStudioService = new GoogleAIStudioService();
     this.splitwiseService = new SplitwiseService();
+    this.currencyConversionService = new CurrencyConversionService();
   }
 
   /**
@@ -400,6 +401,12 @@ class ExpenseTracker {
     // Don't set status for Splitwise movements
     const status = null;
 
+    // Get currency conversions
+    const currencyValues = this.currencyConversionService.getAllCurrencyValues(
+      splitwiseMovement.amount, 
+      splitwiseMovement.currency
+    );
+
     return [
       userDescription,                           // user_description
       null,                                      // comment
@@ -416,7 +423,10 @@ class ExpenseTracker {
       null,                                      // gmail_id
       splitwiseMovement.splitwiseId,             // accounting_system_id
       ACCOUNTING_SYSTEMS.SPLITWISE,              // accounting_system
-      null                                       // settled_movement_id
+      null,                                      // settled_movement_id
+      currencyValues.clpValue,                   // clp_value
+      currencyValues.usdValue,                   // usd_value
+      currencyValues.gbpValue                    // gbp_value
     ];
   }
 
@@ -432,6 +442,12 @@ class ExpenseTracker {
     
     // Determine status for debit/credit transactions
     const status = this.getStatusForTransactionType(transaction.transactionType);
+
+    // Get currency conversions
+    const currencyValues = this.currencyConversionService.getAllCurrencyValues(
+      transaction.amount, 
+      transaction.currency
+    );
 
     return [
       null,                                      // user_description
@@ -449,7 +465,10 @@ class ExpenseTracker {
       transaction.gmailId,                       // gmail_id
       null,                                      // accounting_system_id
       null,                                      // accounting_system
-      null                                       // settled_movement_id
+      null,                                      // settled_movement_id
+      currencyValues.clpValue,                   // clp_value
+      currencyValues.usdValue,                   // usd_value
+      currencyValues.gbpValue                    // gbp_value
     ];
   }
 

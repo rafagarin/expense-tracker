@@ -224,12 +224,43 @@ class Database {
     // Calculate the remaining amount (original - split amount)
     const remainingAmount = originalMovement[COLUMNS.AMOUNT] - splitInfo.split_amount;
     
+    // Get currency conversion service for proportional splitting
+    const currencyConversionService = new CurrencyConversionService();
+    
+    // Get original currency values
+    const originalCurrencyValues = {
+      clpValue: originalMovement[COLUMNS.CLP_VALUE],
+      usdValue: originalMovement[COLUMNS.USD_VALUE],
+      gbpValue: originalMovement[COLUMNS.GBP_VALUE]
+    };
+    
+    // Calculate split ratio
+    const splitRatio = splitInfo.split_amount / originalMovement[COLUMNS.AMOUNT];
+    
+    // Split currency values proportionally for personal portion
+    const personalCurrencyValues = currencyConversionService.splitCurrencyValues(
+      originalMovement[COLUMNS.AMOUNT],
+      splitInfo.split_amount,
+      originalCurrencyValues
+    );
+    
+    // Split currency values proportionally for shared portion
+    const sharedCurrencyValues = currencyConversionService.splitCurrencyValues(
+      originalMovement[COLUMNS.AMOUNT],
+      remainingAmount,
+      originalCurrencyValues
+    );
+    
     // 1. Modify the original row in place to be the personal portion
     const sheetRowIndex = originalMovementIndex + 2;
     this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(splitInfo.split_amount);
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
     this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment for expense line
-    // Keep the original user_description (which should now be the clean description)
+    
+    // Update currency values for the personal portion
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(personalCurrencyValues.clpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(personalCurrencyValues.usdValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(personalCurrencyValues.gbpValue);
     
     // 2. Create the shared portion as a new debit movement
     const sharedMovement = [...originalMovement];
@@ -242,6 +273,11 @@ class Database {
     sharedMovement[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
     sharedMovement[COLUMNS.SOURCE] = SOURCES.GMAIL;
     sharedMovement[COLUMNS.COMMENT] = `Split from #${originalMovementId}`; // Reference the expense line
+    
+    // Set currency values for the shared portion
+    sharedMovement[COLUMNS.CLP_VALUE] = sharedCurrencyValues.clpValue;
+    sharedMovement[COLUMNS.USD_VALUE] = sharedCurrencyValues.usdValue;
+    sharedMovement[COLUMNS.GBP_VALUE] = sharedCurrencyValues.gbpValue;
     
     // Add the new debit movement to the database
     this.addMovement(sharedMovement);
@@ -287,5 +323,6 @@ class Database {
     
     Logger.log(`Updated movement ID ${movementId} with Splitwise ID ${splitwiseId} and marked as in splitwise`);
   }
+
 
 }
