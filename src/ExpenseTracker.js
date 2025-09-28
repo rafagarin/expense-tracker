@@ -485,8 +485,9 @@ class ExpenseTracker {
       case MOVEMENT_TYPES.CREDIT_REPAYMENT:
         return DIRECTIONS.OUTFLOW;
       case MOVEMENT_TYPES.CREDIT:
-      case MOVEMENT_TYPES.DEBIT_REPAYMENT:
         return DIRECTIONS.INFLOW;
+      case MOVEMENT_TYPES.DEBIT_REPAYMENT:
+        return DIRECTIONS.NEUTRAL;
       default:
         return DIRECTIONS.OUTFLOW;
     }
@@ -502,9 +503,10 @@ class ExpenseTracker {
       case MOVEMENT_TYPES.DEBIT:
       case MOVEMENT_TYPES.CREDIT:
         return STATUS.UNSETTLED;
-      case MOVEMENT_TYPES.DEBIT_REPAYMENT:
       case MOVEMENT_TYPES.CREDIT_REPAYMENT:
         return STATUS.SETTLED;
+      case MOVEMENT_TYPES.DEBIT_REPAYMENT:
+        return null;
       default:
         return null;
     }
