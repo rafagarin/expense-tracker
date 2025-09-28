@@ -8,6 +8,7 @@ class SplitwiseService {
     this.splitwiseApiKey = getApiKey(API_CONFIG.SPLITWISE.API_KEY_PROPERTY);
     this.splitwiseBaseUrl = API_CONFIG.SPLITWISE.BASE_URL;
     this.currentUserId = null;
+    this.categoryService = new CategoryService();
   }
 
   /**
@@ -364,49 +365,71 @@ class SplitwiseService {
   /**
    * Map Splitwise category to our category system
    * @param {Object} splitwiseCategory - Category object from Splitwise
-   * @returns {string} Our category constant
+   * @returns {string} Our category name
    */
   mapSplitwiseCategory(splitwiseCategory) {
     if (!splitwiseCategory) {
-      return CATEGORIES.MISCELLANEOUS;
+      return this.getDefaultCategory();
     }
 
     const categoryName = splitwiseCategory.name.toLowerCase();
+    const categories = this.categoryService.getCategories();
     
-    // Map Splitwise categories to our categories
+    // Map Splitwise categories to our dynamic categories
     const categoryMapping = {
-      'food & dining': CATEGORIES.FOOD,
-      'transportation': CATEGORIES.TRANSPORTATION,
-      'utilities': CATEGORIES.HOUSING,
-      'rent': CATEGORIES.HOUSING,
-      'healthcare': CATEGORIES.HEALTH,
-      'entertainment': CATEGORIES.ENTERTAINMENT,
-      'shopping': CATEGORIES.PERSONAL,
-      'travel': CATEGORIES.TRANSPORTATION,
-      'groceries': CATEGORIES.FOOD,
-      'restaurants': CATEGORIES.FOOD,
-      'gas': CATEGORIES.TRANSPORTATION,
-      'public transportation': CATEGORIES.TRANSPORTATION,
-      'medical': CATEGORIES.HEALTH,
-      'pharmacy': CATEGORIES.HEALTH,
-      'clothing': CATEGORIES.PERSONAL,
-      'household': CATEGORIES.HOUSEHOLD,
-      'work': CATEGORIES.WORK
+      'food & dining': 'food',
+      'transportation': 'transportation',
+      'utilities': 'housing',
+      'rent': 'housing',
+      'healthcare': 'health',
+      'entertainment': 'entertainment',
+      'shopping': 'personal',
+      'travel': 'transportation',
+      'groceries': 'food',
+      'restaurants': 'food',
+      'gas': 'transportation',
+      'public transportation': 'transportation',
+      'medical': 'health',
+      'pharmacy': 'health',
+      'clothing': 'personal',
+      'household': 'household',
+      'work': 'work'
     };
 
     // Try exact match first
     if (categoryMapping[categoryName]) {
-      return categoryMapping[categoryName];
+      const mappedCategory = categoryMapping[categoryName];
+      if (this.categoryService.isValidCategory(mappedCategory)) {
+        return mappedCategory;
+      }
     }
 
     // Try partial matches
     for (const [key, value] of Object.entries(categoryMapping)) {
       if (categoryName.includes(key) || key.includes(categoryName)) {
-        return value;
+        if (this.categoryService.isValidCategory(value)) {
+          return value;
+        }
       }
     }
 
-    return CATEGORIES.MISCELLANEOUS;
+    return this.getDefaultCategory();
+  }
+
+  /**
+   * Get the default category (miscellaneous or first available)
+   * @returns {string} Default category name
+   */
+  getDefaultCategory() {
+    const categories = this.categoryService.getCategoryNames();
+    
+    // Try to find 'miscellaneous' first
+    if (categories.includes('miscellaneous')) {
+      return 'miscellaneous';
+    }
+    
+    // Fall back to the first available category
+    return categories[0] || 'miscellaneous';
   }
 
   /**

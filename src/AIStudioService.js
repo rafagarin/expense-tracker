@@ -7,6 +7,7 @@ class GoogleAIStudioService {
     this.googleAIStudioApiKey = getApiKey(API_CONFIG.GOOGLE_AI_STUDIO.API_KEY_PROPERTY);
     this.googleAIStudioBaseUrl = API_CONFIG.GOOGLE_AI_STUDIO.BASE_URL;
     this.googleAIStudioModel = API_CONFIG.GOOGLE_AI_STUDIO.MODEL;
+    this.categoryService = new CategoryService();
   }
 
   /**
@@ -211,6 +212,7 @@ If you cannot extract any of these fields, set them to null. Only return valid J
    */
   createCategoryAnalysisPrompt(userDescription, movementData) {
     const { amount, currency, sourceDescription, type, direction } = movementData;
+    const categoriesList = this.categoryService.getCategoriesForAIPrompt();
     
     return `You are an expert at categorizing personal expenses and determining if they need to be split. Analyze the following user description and determine the most appropriate category and split information.
 
@@ -225,15 +227,7 @@ Additional Context:
 - Direction: ${direction || 'Not provided'}
 
 Available Categories (choose ONLY one):
-- housing: Rent, mortgage, utilities, home maintenance, property taxes
-- food: Groceries, restaurants, food delivery, coffee shops, dining out
-- transportation: Gas, public transport, car maintenance, parking, rideshare, flights
-- health: Medical expenses, pharmacy, doctor visits, health insurance, gym memberships
-- personal: Clothing, personal care, haircuts, cosmetics, personal items
-- household: Cleaning supplies, home goods, furniture, appliances, home improvement
-- entertainment: Movies, concerts, games, streaming services, hobbies, sports
-- work: Business expenses, work supplies, professional development, work meals
-- miscellaneous: Everything else that doesn't fit the above categories
+${categoriesList}
 
 Split Analysis:
 Determine if this expense should be split into two parts. Look for indicators in both the main description and any comments/instructions:
@@ -248,11 +242,7 @@ Rules for categorization:
 1. Choose the category that best represents the primary purpose of the expense
 2. If it could fit multiple categories, choose the most specific one
 3. Consider the context and amount when making decisions
-4. For work-related expenses, use "work" category
-5. For regular monthly bills (utilities, rent), use "housing"
-6. For food-related expenses, use "food" regardless of location
-7. For transportation costs, use "transportation"
-8. When in doubt, choose "miscellaneous"
+4. When in doubt, choose "miscellaneous"
 
 Return a JSON object with the following structure:
 {
@@ -307,7 +297,7 @@ The split_instructions should contain any split-related instructions or comments
       }
 
       // Validate that the category is one of our valid categories
-      const validCategories = Object.values(CATEGORIES);
+      const validCategories = this.categoryService.getCategoryNames();
       if (!validCategories.includes(parsedData.category)) {
         Logger.log(`Invalid category in response: ${parsedData.category}`);
         return null;

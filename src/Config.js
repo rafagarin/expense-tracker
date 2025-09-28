@@ -55,18 +55,6 @@ const DIRECTIONS = {
   NEUTRAL: 'neutral'
 };
 
-// Categories
-const CATEGORIES = {
-  HOUSING: 'housing',
-  FOOD: 'food',
-  TRANSPORTATION: 'transportation',
-  HEALTH: 'health',
-  PERSONAL: 'personal',
-  HOUSEHOLD: 'household',
-  ENTERTAINMENT: 'entertainment',
-  WORK: 'work',
-  MISCELLANEOUS: 'miscellaneous'
-};
 
 // Status values
 const STATUS = {
