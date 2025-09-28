@@ -332,4 +332,119 @@ The split_instructions should contain any split-related instructions or comments
     }
   }
 
+  /**
+   * Match a debit repayment to a pending debit movement using AI
+   * @param {Object} repaymentMovement - The debit repayment movement
+   * @param {Array} pendingDebits - Array of pending debit movements
+   * @returns {number|null} The ID of the matching debit movement or null if no match found
+   */
+  async matchDebitRepayment(repaymentMovement, pendingDebits) {
+    try {
+      if (!pendingDebits || pendingDebits.length === 0) {
+        Logger.log('No pending debit movements to match against');
+        return null;
+      }
+
+      const prompt = this.createDebitMatchingPrompt(repaymentMovement, pendingDebits);
+      const response = await this.callGoogleAIStudioAPI(prompt);
+      
+      if (response && response.candidates && response.candidates.length > 0) {
+        return this.parseDebitMatchingResponse(response);
+      }
+      
+      return null;
+    } catch (error) {
+      Logger.log(`Error matching debit repayment: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Create a prompt for Google AI Studio to match debit repayments to pending debits
+   * @param {Object} repaymentMovement - The debit repayment movement
+   * @param {Array} pendingDebits - Array of pending debit movements
+   * @returns {string} The formatted prompt
+   */
+  createDebitMatchingPrompt(repaymentMovement, pendingDebits) {
+    const { amount, currency, userDescription, comment, timestamp } = repaymentMovement;
+    
+    // Format pending debits for the prompt
+    const pendingDebitsList = pendingDebits.map(debit => {
+      const debitDate = new Date(debit[COLUMNS.TIMESTAMP]).toLocaleDateString();
+      return `ID: ${debit[COLUMNS.ID]} | Date: ${debitDate} | Amount: ${debit[COLUMNS.CURRENCY]} ${debit[COLUMNS.AMOUNT]} | Description: "${debit[COLUMNS.USER_DESCRIPTION] || debit[COLUMNS.SOURCE_DESCRIPTION]}" | Comment: "${debit[COLUMNS.COMMENT] || 'None'}"`;
+    }).join('\n');
+
+    return `You are an expert at matching financial transactions. I need you to match a debit repayment to one of the pending debit movements.
+
+REPAYMENT MOVEMENT TO MATCH:
+- Amount: ${currency} ${amount}
+- Description: "${userDescription || 'None'}"
+- Comment: "${comment || 'None'}"
+- Date: ${new Date(timestamp).toLocaleDateString()}
+
+PENDING DEBIT MOVEMENTS:
+${pendingDebitsList}
+
+INSTRUCTIONS:
+1. Analyze the repayment description and comment to understand what it's paying for
+2. Look for matching patterns with the pending debit movements:
+   - Similar amounts (exact match preferred, but small differences acceptable)
+   - Related descriptions (e.g., "lunch" matches "dinner", "coffee" matches "cafe")
+   - Time proximity (repayments usually happen within a few days/weeks of the original debit)
+   - Context clues in comments (e.g., "Payment for this week's lunch" should match a lunch-related debit)
+
+3. IMPORTANT: The repayment must be at least 95% of the debit amount to be considered a valid settlement. Prioritize matches where:
+   - The repayment amount is close to or equal to the debit amount
+   - The repayment amount is at least 95% of the debit amount
+   - If multiple matches are possible, choose the one with the closest amount match
+
+4. Consider these matching criteria in order of importance:
+   - Amount similarity (exact match preferred, repayment should be ≥95% of debit amount)
+   - Description similarity (keywords, context, activity type)
+   - Time proximity (more recent debits are more likely)
+   - Comment context (explicit references to specific activities)
+
+5. Return ONLY the ID of the best matching debit movement, or "null" if no good match is found.
+   - Only return a match if the repayment amount is at least 95% of the debit amount
+   - If no match meets the 95% threshold, return "null"
+
+Return format: Just the ID number (e.g., "123") or "null" if no match found.`;
+  }
+
+  /**
+   * Parse the Google AI Studio response for debit matching
+   * @param {Object} apiResponse - The full API response object
+   * @returns {number|null} The ID of the matching debit movement or null if no match found
+   */
+  parseDebitMatchingResponse(apiResponse) {
+    try {
+      if (!apiResponse.candidates || apiResponse.candidates.length === 0) {
+        Logger.log('No candidates found in debit matching response');
+        return null;
+      }
+
+      const textContent = apiResponse.candidates[0].content.parts[0].text.trim();
+      
+      // Try to extract a number (the ID) or "null"
+      const idMatch = textContent.match(/(\d+)/);
+      if (idMatch) {
+        const matchedId = parseInt(idMatch[1], 10);
+        Logger.log(`AI matched debit repayment to movement ID: ${matchedId}`);
+        return matchedId;
+      }
+      
+      // Check for "null" response
+      if (textContent.toLowerCase().includes('null')) {
+        Logger.log('AI found no matching debit movement');
+        return null;
+      }
+      
+      Logger.log(`Unexpected debit matching response: ${textContent}`);
+      return null;
+    } catch (error) {
+      Logger.log(`Error parsing debit matching response: ${error.message}`);
+      return null;
+    }
+  }
+
 }

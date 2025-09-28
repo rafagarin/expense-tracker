@@ -340,6 +340,66 @@ class Database {
   }
 
   /**
+   * Get debit movements that are pending direct settlement
+   * @returns {Array} Array of debit movements pending direct settlement
+   */
+  getMovementsPendingDirectSettlement() {
+    const allMovements = this.getAllMovements();
+    return allMovements.filter(movement => 
+      movement[COLUMNS.TYPE] === MOVEMENT_TYPES.DEBIT && 
+      movement[COLUMNS.STATUS] === STATUS.PENDING_DIRECT_SETTLEMENT
+    );
+  }
+
+  /**
+   * Update the settled_movement_id for a movement
+   * @param {number} movementId - The ID of the movement to update
+   * @param {number} settledMovementId - The ID of the movement that settles this one
+   */
+  updateMovementSettledId(movementId, settledMovementId) {
+    // Find the row that contains the movement with the given ID
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+    
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return;
+    }
+    
+    // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
+    const sheetRowIndex = movementRowIndex + 2;
+    
+    // Update settled_movement_id
+    this.sheet.getRange(sheetRowIndex, COLUMNS.SETTLED_MOVEMENT_ID + 1).setValue(settledMovementId);
+    
+    Logger.log(`Updated movement ID ${movementId} with settled_movement_id: ${settledMovementId}`);
+  }
+
+  /**
+   * Update the status for a movement
+   * @param {number} movementId - The ID of the movement to update
+   * @param {string} status - The new status value
+   */
+  updateMovementStatus(movementId, status) {
+    // Find the row that contains the movement with the given ID
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+    
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return;
+    }
+    
+    // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
+    const sheetRowIndex = movementRowIndex + 2;
+    
+    // Update status
+    this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(status);
+    
+    Logger.log(`Updated movement ID ${movementId} status to: ${status}`);
+  }
+
+  /**
    * Update movement with Splitwise information after pushing to Splitwise
    * @param {number} movementId - The ID of the movement to update
    * @param {string} splitwiseId - The Splitwise expense ID

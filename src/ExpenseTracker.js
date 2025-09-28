@@ -160,6 +160,11 @@ class ExpenseTracker {
                 errorCount++;
               }
             }
+
+            // 6. If this is a debit repayment, try to match it to a pending debit
+            if (movement[COLUMNS.TYPE] === MOVEMENT_TYPES.DEBIT_REPAYMENT) {
+              await this.processDebitRepaymentSettlement(movementId, movement);
+            }
           } else {
             Logger.log(`Could not analyze movement ID ${movementId}: "${userDescription}"`);
             errorCount++;
@@ -182,6 +187,73 @@ class ExpenseTracker {
     }
   }
 
+  /**
+   * Process debit repayment settlement by matching it to a pending debit movement
+   * @param {number} repaymentMovementId - The ID of the debit repayment movement
+   * @param {Array} repaymentMovement - The debit repayment movement data
+   */
+  async processDebitRepaymentSettlement(repaymentMovementId, repaymentMovement) {
+    try {
+      Logger.log(`Processing debit repayment settlement for movement ID ${repaymentMovementId}`);
+
+      // Get all pending debit movements
+      const pendingDebits = this.database.getMovementsPendingDirectSettlement();
+      
+      if (pendingDebits.length === 0) {
+        Logger.log('No pending debit movements found for settlement matching');
+        return;
+      }
+
+      Logger.log(`Found ${pendingDebits.length} pending debit movement(s) to match against`);
+
+      // Prepare repayment movement data for AI matching
+      const repaymentData = {
+        amount: repaymentMovement[COLUMNS.AMOUNT],
+        currency: repaymentMovement[COLUMNS.CURRENCY],
+        userDescription: repaymentMovement[COLUMNS.USER_DESCRIPTION],
+        comment: repaymentMovement[COLUMNS.COMMENT],
+        timestamp: repaymentMovement[COLUMNS.TIMESTAMP]
+      };
+
+      // Use AI to match the repayment to a pending debit
+      const matchedDebitId = await this.googleAIStudioService.matchDebitRepayment(repaymentData, pendingDebits);
+
+      if (matchedDebitId) {
+        // Find the matched debit to check amount threshold
+        const matchedDebit = pendingDebits.find(debit => debit[COLUMNS.ID] === matchedDebitId);
+        
+        if (matchedDebit) {
+          const debitAmount = matchedDebit[COLUMNS.AMOUNT];
+          const repaymentAmount = repaymentMovement[COLUMNS.AMOUNT];
+          const repaymentPercentage = (repaymentAmount / debitAmount) * 100;
+          
+          Logger.log(`Matched debit ${matchedDebitId}: debit amount ${debitAmount}, repayment amount ${repaymentAmount}, percentage: ${repaymentPercentage.toFixed(2)}%`);
+          
+          // Update the repayment movement with the settled_movement_id (one-way reference)
+          this.database.updateMovementSettledId(repaymentMovementId, matchedDebitId);
+          
+          // Only mark debit as settled if repayment is at least 95% of the debit amount
+          if (repaymentPercentage >= 95) {
+            this.database.updateMovementStatus(matchedDebitId, STATUS.SETTLED);
+            Logger.log(`Successfully matched debit repayment ${repaymentMovementId} to debit ${matchedDebitId} and marked as settled (${repaymentPercentage.toFixed(2)}% of amount)`);
+          } else if (repaymentPercentage >= 50) {
+            // Partial payment - keep debit as pending but log the partial settlement
+            Logger.log(`Matched partial debit repayment ${repaymentMovementId} to debit ${matchedDebitId} (${repaymentPercentage.toFixed(2)}% of amount) - keeping debit as pending for full settlement`);
+          } else {
+            // Very small payment - might be a different transaction
+            Logger.log(`Matched small debit repayment ${repaymentMovementId} to debit ${matchedDebitId} (${repaymentPercentage.toFixed(2)}% of amount) - may be incorrect match, keeping debit as pending`);
+          }
+        } else {
+          Logger.log(`Could not find matched debit ${matchedDebitId} in pending debits list`);
+        }
+      } else {
+        Logger.log(`Could not find a matching debit for repayment ${repaymentMovementId}`);
+      }
+
+    } catch (error) {
+      Logger.log(`Error processing debit repayment settlement for movement ${repaymentMovementId}: ${error.message}`);
+    }
+  }
 
   /**
    * Push pending Splitwise settlement movements to Splitwise
