@@ -410,7 +410,7 @@ class ExpenseTracker {
     return [
       userDescription,                           // user_description
       null,                                      // comment
-      timestamp,                                 // timestamp
+      new Date(timestamp),                       // timestamp (as Date object)
       SOURCES.ACCOUNTING,                        // source
       splitwiseMovement.amount,                  // amount
       splitwiseMovement.currency,                // currency
@@ -452,7 +452,7 @@ class ExpenseTracker {
     return [
       null,                                      // user_description
       null,                                      // comment
-      transaction.timestamp,                     // timestamp
+      new Date(transaction.timestamp),           // timestamp (as Date object)
       SOURCES.GMAIL,                             // source
       transaction.amount,                        // amount
       transaction.currency,                      // currency
