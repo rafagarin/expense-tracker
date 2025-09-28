@@ -318,7 +318,6 @@ class Database {
     
     // Update Splitwise information
     this.sheet.getRange(sheetRowIndex, COLUMNS.ACCOUNTING_SYSTEM_ID + 1).setValue(splitwiseId);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.ACCOUNTING_SYSTEM + 1).setValue(ACCOUNTING_SYSTEMS.SPLITWISE);
     this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(STATUS.IN_SPLITWISE);
     
     Logger.log(`Updated movement ID ${movementId} with Splitwise ID ${splitwiseId} and marked as in splitwise`);

@@ -408,25 +408,24 @@ class ExpenseTracker {
     );
 
     return [
-      userDescription,                           // user_description
-      null,                                      // comment
       new Date(timestamp),                       // timestamp (as Date object)
-      SOURCES.ACCOUNTING,                        // source
+      direction,                                 // direction
+      type,                                      // type
       splitwiseMovement.amount,                  // amount
       splitwiseMovement.currency,                // currency
       splitwiseMovement.description,             // source_description
-      direction,                                 // direction
-      type,                                      // type
+      userDescription,                           // user_description
+      null,                                      // comment
       splitwiseMovement.category,                // category
       status,                                    // status (settled or unsettled)
-      nextId,                                    // id
-      null,                                      // gmail_id
-      splitwiseMovement.splitwiseId,             // accounting_system_id
-      ACCOUNTING_SYSTEMS.SPLITWISE,              // accounting_system
       null,                                      // settled_movement_id
       currencyValues.clpValue,                   // clp_value
       currencyValues.usdValue,                   // usd_value
-      currencyValues.gbpValue                    // gbp_value
+      currencyValues.gbpValue,                   // gbp_value
+      nextId,                                    // id
+      SOURCES.ACCOUNTING,                        // source
+      null,                                      // gmail_id
+      splitwiseMovement.splitwiseId              // accounting_system_id
     ];
   }
 
@@ -450,25 +449,24 @@ class ExpenseTracker {
     );
 
     return [
-      null,                                      // user_description
-      null,                                      // comment
       new Date(transaction.timestamp),           // timestamp (as Date object)
-      SOURCES.GMAIL,                             // source
+      direction,                                 // direction
+      transaction.transactionType,               // type
       transaction.amount,                        // amount
       transaction.currency,                      // currency
       transaction.sourceDescription,             // source_description
-      direction,                                 // direction
-      transaction.transactionType,               // type
+      null,                                      // user_description
+      null,                                      // comment
       null,                                      // category
       status,                                    // status
-      nextId,                                    // id
-      transaction.gmailId,                       // gmail_id
-      null,                                      // accounting_system_id
-      null,                                      // accounting_system
       null,                                      // settled_movement_id
       currencyValues.clpValue,                   // clp_value
       currencyValues.usdValue,                   // usd_value
-      currencyValues.gbpValue                    // gbp_value
+      currencyValues.gbpValue,                   // gbp_value
+      nextId,                                    // id
+      SOURCES.GMAIL,                             // source
+      transaction.gmailId,                       // gmail_id
+      null                                       // accounting_system_id
     ];
   }
 

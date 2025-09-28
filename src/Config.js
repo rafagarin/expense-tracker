@@ -10,25 +10,24 @@ const GMAIL_QUERY = '(label:expenses newer_than:8d) OR label:expenses/manual ';
 
 // Database column indices (0-based)
 const COLUMNS = {
-  USER_DESCRIPTION: 0,
-  COMMENT: 1,
-  TIMESTAMP: 2,
-  SOURCE: 3,
-  AMOUNT: 4,
-  CURRENCY: 5,
-  SOURCE_DESCRIPTION: 6,
-  DIRECTION: 7,
-  TYPE: 8,
-  CATEGORY: 9,
-  STATUS: 10,
-  ID: 11,
-  GMAIL_ID: 12,
-  ACCOUNTING_SYSTEM_ID: 13,
-  ACCOUNTING_SYSTEM: 14,
-  SETTLED_MOVEMENT_ID: 15,
-  CLP_VALUE: 16,
-  USD_VALUE: 17,
-  GBP_VALUE: 18
+  TIMESTAMP: 0,
+  DIRECTION: 1,
+  TYPE: 2,
+  AMOUNT: 3,
+  CURRENCY: 4,
+  SOURCE_DESCRIPTION: 5,
+  USER_DESCRIPTION: 6,
+  COMMENT: 7,
+  CATEGORY: 8,
+  STATUS: 9,
+  SETTLED_MOVEMENT_ID: 10,
+  CLP_VALUE: 11,
+  USD_VALUE: 12,
+  GBP_VALUE: 13,
+  ID: 14,
+  SOURCE: 15,
+  GMAIL_ID: 16,
+  ACCOUNTING_SYSTEM_ID: 17
 };
 
 // Supported currencies
@@ -65,10 +64,6 @@ const STATUS = {
   IN_SPLITWISE: 'in splitwise'
 };
 
-// Accounting systems
-const ACCOUNTING_SYSTEMS = {
-  SPLITWISE: 'splitwise'
-};
 
 // Source values
 const SOURCES = {
