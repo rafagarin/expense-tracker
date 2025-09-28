@@ -72,6 +72,12 @@ class Database {
    * @param {Array} movementRow - Array representing the movement data
    */
   addMovement(movementRow) {
+    // Validate that the ID is unique before adding
+    const movementId = movementRow[COLUMNS.ID];
+    if (this.idExists(movementId)) {
+      throw new Error(`Movement with ID ${movementId} already exists in the database. This would create a duplicate ID.`);
+    }
+    
     this.sheet.appendRow(movementRow);
   }
 
@@ -98,7 +104,42 @@ class Database {
    * @returns {number} Next available ID
    */
   getNextId() {
-    return this.sheet.getLastRow() + 1;
+    if (this.sheet.getLastRow() <= 1) {
+      // If no data rows exist, start with ID 1
+      return 1;
+    }
+    
+    // Get all existing IDs from the database
+    const idRange = this.sheet.getRange(2, COLUMNS.ID + 1, this.sheet.getLastRow() - 1, 1);
+    const idValues = idRange.getValues();
+    
+    // Find the maximum ID value
+    let maxId = 0;
+    idValues.forEach(row => {
+      const id = row[0];
+      if (id && !isNaN(id) && id > maxId) {
+        maxId = id;
+      }
+    });
+    
+    // Return the next available ID
+    return maxId + 1;
+  }
+
+  /**
+   * Check if an ID already exists in the database
+   * @param {number} id - The ID to check
+   * @returns {boolean} True if the ID exists, false otherwise
+   */
+  idExists(id) {
+    if (this.sheet.getLastRow() <= 1) {
+      return false;
+    }
+    
+    const idRange = this.sheet.getRange(2, COLUMNS.ID + 1, this.sheet.getLastRow() - 1, 1);
+    const idValues = idRange.getValues();
+    
+    return idValues.some(row => row[0] === id);
   }
 
   /**
