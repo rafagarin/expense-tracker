@@ -232,12 +232,18 @@ class Database {
     // Update category
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(analysisResult.category);
     
-    // Update user description with clean description
-    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(analysisResult.clean_description);
+    // Keep original user description unchanged - don't modify it
+    // this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(analysisResult.clean_description);
     
     // Update comment with split instructions if available
     if (analysisResult.split_instructions) {
       this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(analysisResult.split_instructions);
+    }
+    
+    // Only update AI comment with clean description if this is a split movement
+    // For non-split movements, leave AI comment empty to avoid duplicating user description
+    if (analysisResult.needs_split && analysisResult.clean_description) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(analysisResult.clean_description);
     }
     
     Logger.log(`Updated movement ID ${movementId} with analysis results: category=${analysisResult.category}, needs_split=${analysisResult.needs_split}`);
@@ -297,6 +303,7 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(splitInfo.split_amount);
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
     this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment for expense line
+    this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(`Split into #${nextId}`); // Reference the debit line it was split into
     
     // Update currency values for the personal portion
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(personalCurrencyValues.clpValue);
@@ -308,12 +315,13 @@ class Database {
     sharedMovement[COLUMNS.ID] = nextId;
     sharedMovement[COLUMNS.AMOUNT] = remainingAmount;
     sharedMovement[COLUMNS.CATEGORY] = originalMovement[COLUMNS.CATEGORY];
-    sharedMovement[COLUMNS.USER_DESCRIPTION] = originalMovement[COLUMNS.USER_DESCRIPTION];
+    sharedMovement[COLUMNS.USER_DESCRIPTION] = originalMovement[COLUMNS.USER_DESCRIPTION]; // Keep original user description
     sharedMovement[COLUMNS.DIRECTION] = DIRECTIONS.NEUTRAL;
     sharedMovement[COLUMNS.TYPE] = MOVEMENT_TYPES.DEBIT;
     sharedMovement[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
     sharedMovement[COLUMNS.SOURCE] = SOURCES.GMAIL;
-    sharedMovement[COLUMNS.COMMENT] = `Split from #${originalMovementId}`; // Reference the expense line
+    sharedMovement[COLUMNS.COMMENT] = ''; // Clear comment for debit line
+    sharedMovement[COLUMNS.AI_COMMENT] = `Split from #${originalMovementId}`; // Reference the expense line in AI comment
     
     // Set currency values for the shared portion
     sharedMovement[COLUMNS.CLP_VALUE] = sharedCurrencyValues.clpValue;

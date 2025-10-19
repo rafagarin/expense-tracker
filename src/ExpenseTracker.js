@@ -490,6 +490,7 @@ class ExpenseTracker {
       splitwiseMovement.description,             // source_description
       userDescription,                           // user_description
       null,                                      // comment
+      null,                                      // ai_comment
       splitwiseMovement.category,                // category
       status,                                    // status (settled or pending settlement)
       null,                                      // settled_movement_id
@@ -532,6 +533,7 @@ class ExpenseTracker {
       transaction.sourceDescription,             // source_description
       null,                                      // user_description
       null,                                      // comment
+      null,                                      // ai_comment
       null,                                      // category
       status,                                    // status
       null,                                      // settled_movement_id
