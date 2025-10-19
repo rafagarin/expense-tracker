@@ -477,7 +477,8 @@ class ExpenseTracker {
     // Get currency conversions
     const currencyValues = this.currencyConversionService.getAllCurrencyValues(
       splitwiseMovement.amount, 
-      splitwiseMovement.currency
+      splitwiseMovement.currency,
+      3 // maxRetries
     );
 
     return [
@@ -518,7 +519,8 @@ class ExpenseTracker {
     // Get currency conversions
     const currencyValues = this.currencyConversionService.getAllCurrencyValues(
       transaction.amount, 
-      transaction.currency
+      transaction.currency,
+      3 // maxRetries
     );
 
     return [

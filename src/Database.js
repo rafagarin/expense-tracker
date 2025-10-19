@@ -471,15 +471,18 @@ class Database {
     
     // Get currency conversion service and attempt to fix the conversion
     const currencyConversionService = new CurrencyConversionService();
-    const currencyValues = currencyConversionService.fixCurrencyConversion(amount, currency);
     
-    if (!currencyValues) {
+    const currencyValues = currencyConversionService.fixCurrencyConversion(
+      amount, 
+      currency
+    );
+    
+    if (!currencyValues || (!currencyValues.clpValue && !currencyValues.usdValue && !currencyValues.gbpValue)) {
       Logger.log(`Failed to fix currency conversion for movement ID ${movementId}`);
       return false;
     }
     
-    // Update the movement with the fixed currency values
-    const sheetRowIndex = movementRowIndex + 2;
+    // Update the movement with the fixed currency values (formulas or calculated values)
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(currencyValues.clpValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(currencyValues.usdValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(currencyValues.gbpValue);

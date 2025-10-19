@@ -131,13 +131,46 @@ class CurrencyConversionService {
   }
 
   /**
+   * Check if a currency is supported by the internal conversion system
+   * @param {string} currency - The currency code to check
+   * @returns {boolean} True if the currency is supported internally
+   */
+  isSupportedCurrency(currency) {
+    return currency === CURRENCIES.CLP || currency === CURRENCIES.USD || currency === CURRENCIES.GBP;
+  }
+
+  /**
+   * Generate Google Finance formula for currency conversion
+   * @param {number} amount - The amount to convert
+   * @param {string} fromCurrency - Source currency
+   * @param {string} toCurrency - Target currency
+   * @returns {string} Google Finance formula
+   */
+  generateGoogleFinanceFormula(amount, fromCurrency, toCurrency) {
+    if (fromCurrency === toCurrency) {
+      return amount; // No conversion needed
+    }
+    
+    // Google Finance format: GOOGLEFINANCE("CURRENCY:FROMTO")
+    const currencyPair = `${fromCurrency}${toCurrency}`;
+    return `=${amount}*GOOGLEFINANCE("CURRENCY:${currencyPair}")`;
+  }
+
+  /**
    * Get all currency values for a given amount and currency
    * @param {number} amount - The amount to convert
    * @param {string} currency - Source currency
    * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
-   * @returns {Object} Object with clpValue, usdValue, gbpValue
+   * @returns {Object} Object with clpValue, usdValue, gbpValue (calculated values)
    */
   getAllCurrencyValues(amount, currency, maxRetries = 3) {
+    // If currency is not supported, use Google Finance to calculate actual values
+    if (!this.isSupportedCurrency(currency)) {
+      Logger.log(`Currency ${currency} not supported internally, using Google Finance to calculate values`);
+      return this.getAllCurrencyValuesWithGoogleFinanceCalculated(amount, currency);
+    }
+    
+    // Use internal conversion for supported currencies
     let lastError = null;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -177,6 +210,83 @@ class CurrencyConversionService {
   }
 
   /**
+   * Get all currency values using Google Finance formulas for unsupported currencies
+   * @param {number} amount - The amount to convert
+   * @param {string} currency - Source currency
+   * @returns {Object} Object with clpValue, usdValue, gbpValue as Google Finance formulas
+   */
+  getAllCurrencyValuesWithGoogleFinance(amount, currency) {
+    return {
+      clpValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.CLP),
+      usdValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.USD),
+      gbpValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.GBP)
+    };
+  }
+
+  /**
+   * Calculate Google Finance values and return actual numbers instead of formulas
+   * @param {number} amount - The amount to convert
+   * @param {string} currency - Source currency
+   * @returns {Object} Object with clpValue, usdValue, gbpValue as calculated numbers
+   */
+  getAllCurrencyValuesWithGoogleFinanceCalculated(amount, currency) {
+    try {
+      // Create a temporary sheet to calculate the Google Finance values
+      const tempSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('TempCurrencyCalc');
+      
+      // Set up the calculation
+      const amountCell = tempSheet.getRange('A1');
+      const clpCell = tempSheet.getRange('B1');
+      const usdCell = tempSheet.getRange('C1');
+      const gbpCell = tempSheet.getRange('D1');
+      
+      // Set the amount
+      amountCell.setValue(amount);
+      
+      // Set up Google Finance formulas
+      clpCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.CLP}")`);
+      usdCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.USD}")`);
+      gbpCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.GBP}")`);
+      
+      // Wait a moment for formulas to calculate
+      SpreadsheetApp.flush();
+      Utilities.sleep(1000);
+      
+      // Get the calculated values
+      const clpValue = clpCell.getValue();
+      const usdValue = usdCell.getValue();
+      const gbpValue = gbpCell.getValue();
+      
+      // Clean up - delete the temporary sheet
+      SpreadsheetApp.getActiveSpreadsheet().deleteSheet(tempSheet);
+      
+      // Check if we got valid values
+      if (isNaN(clpValue) || isNaN(usdValue) || isNaN(gbpValue)) {
+        Logger.log(`Google Finance calculation failed for ${amount} ${currency}`);
+        return {
+          clpValue: null,
+          usdValue: null,
+          gbpValue: null
+        };
+      }
+      
+      return {
+        clpValue: Math.round(clpValue * 100) / 100,
+        usdValue: Math.round(usdValue * 100) / 100,
+        gbpValue: Math.round(gbpValue * 100) / 100
+      };
+      
+    } catch (error) {
+      Logger.log(`Error calculating Google Finance values: ${error.message}`);
+      return {
+        clpValue: null,
+        usdValue: null,
+        gbpValue: null
+      };
+    }
+  }
+
+  /**
    * Refresh conversion rates from the Values sheet
    * Call this if rates have been updated
    */
@@ -203,6 +313,18 @@ class CurrencyConversionService {
   }
 
   /**
+   * Check if a value is a Google Finance formula
+   * @param {*} value - The value to check
+   * @returns {boolean} True if the value is a Google Finance formula
+   */
+  isGoogleFinanceFormula(value) {
+    if (typeof value === 'string') {
+      return value.includes('GOOGLEFINANCE') && value.includes('CURRENCY:');
+    }
+    return false;
+  }
+
+  /**
    * Fix currency conversion for a movement by recalculating all currency values
    * @param {number} amount - The original amount
    * @param {string} currency - The original currency
@@ -211,7 +333,7 @@ class CurrencyConversionService {
   fixCurrencyConversion(amount, currency) {
     try {
       Logger.log(`Attempting to fix currency conversion for ${amount} ${currency}`);
-      return this.getAllCurrencyValues(amount, currency);
+      return this.getAllCurrencyValues(amount, currency, 3);
     } catch (error) {
       Logger.log(`Failed to fix currency conversion: ${error.message}`);
       return null;
