@@ -25,10 +25,11 @@ const COLUMNS = {
   CLP_VALUE: 12,
   USD_VALUE: 13,
   GBP_VALUE: 14,
-  ID: 15,
-  SOURCE: 16,
-  GMAIL_ID: 17,
-  ACCOUNTING_SYSTEM_ID: 18
+  ORIGINAL_AMOUNT: 15,
+  ID: 16,
+  SOURCE: 17,
+  GMAIL_ID: 18,
+  ACCOUNTING_SYSTEM_ID: 19
 };
 
 // Supported currencies

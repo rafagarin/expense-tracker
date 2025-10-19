@@ -497,6 +497,7 @@ class ExpenseTracker {
       currencyValues.clpValue,                   // clp_value
       currencyValues.usdValue,                   // usd_value
       currencyValues.gbpValue,                   // gbp_value
+      null,                                      // original_amount
       nextId,                                    // id
       SOURCES.ACCOUNTING,                        // source
       null,                                      // gmail_id
@@ -540,6 +541,7 @@ class ExpenseTracker {
       currencyValues.clpValue,                   // clp_value
       currencyValues.usdValue,                   // usd_value
       currencyValues.gbpValue,                   // gbp_value
+      null,                                      // original_amount
       nextId,                                    // id
       SOURCES.GMAIL,                             // source
       transaction.gmailId,                       // gmail_id

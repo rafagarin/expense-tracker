@@ -304,6 +304,7 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
     this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment for expense line
     this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(`Split into #${nextId}`); // Reference the debit line it was split into
+    this.sheet.getRange(sheetRowIndex, COLUMNS.ORIGINAL_AMOUNT + 1).setValue(originalMovement[COLUMNS.AMOUNT]); // Set original amount
     
     // Update currency values for the personal portion
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(personalCurrencyValues.clpValue);
@@ -322,6 +323,7 @@ class Database {
     sharedMovement[COLUMNS.SOURCE] = SOURCES.GMAIL;
     sharedMovement[COLUMNS.COMMENT] = ''; // Clear comment for debit line
     sharedMovement[COLUMNS.AI_COMMENT] = `Split from #${originalMovementId}`; // Reference the expense line in AI comment
+    sharedMovement[COLUMNS.ORIGINAL_AMOUNT] = originalMovement[COLUMNS.AMOUNT]; // Set original amount
     
     // Set currency values for the shared portion
     sharedMovement[COLUMNS.CLP_VALUE] = sharedCurrencyValues.clpValue;
