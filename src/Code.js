@@ -16,6 +16,7 @@ function onOpen() {
     .addItem('Process From Splitwise', 'processSplitwise')
     .addItem('Analyze Movements', 'analyzeMovements')
     .addItem('Push to Splitwise', 'pushToSplitwise')
+    .addItem('Fix Currency Conversions', 'fixCurrencyConversions')
     .addToUi();
 }
 
@@ -57,6 +58,22 @@ async function pushToSplitwise() {
 }
 
 /**
+ * Fix failed currency conversions for all movements
+ * This function can be called manually to fix #NUM! errors in currency conversion columns
+ */
+async function fixCurrencyConversions() {
+  try {
+    Logger.log('Starting currency conversion fix...');
+    const expenseTracker = new ExpenseTracker();
+    await expenseTracker.fixFailedCurrencyConversions();
+    Logger.log('Currency conversion fix completed.');
+  } catch (error) {
+    Logger.log(`Error in currency conversion fix: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
  * Main function that performs all expense tracking actions with proper conditions
  * This is the primary entry point that orchestrates the entire workflow
  * @param {Object} clientProperties - Optional client properties object
@@ -81,6 +98,10 @@ async function main(clientProperties = null) {
     // Step 4: Push to Splitwise (only movements with "Awaiting Splitwise Upload" status)
     Logger.log('=== Step 4: Pushing to Splitwise ===');
     await expenseTracker.pushToSplitwise();
+    
+    // Step 5: Fix failed currency conversions
+    Logger.log('=== Step 5: Fixing failed currency conversions ===');
+    await expenseTracker.fixFailedCurrencyConversions();
     
     Logger.log('Main expense tracking workflow completed successfully.');
     

@@ -579,4 +579,32 @@ class ExpenseTracker {
         return null;
     }
   }
+
+  /**
+   * Fix all movements that have failed currency conversions
+   * This method is called as part of the main workflow to ensure all movements have proper currency values
+   */
+  async fixFailedCurrencyConversions() {
+    try {
+      Logger.log('Starting currency conversion fix process...');
+      
+      const result = this.database.fixAllFailedCurrencyConversions();
+      
+      if (result.successCount > 0) {
+        Logger.log(`Successfully fixed ${result.successCount} movements with failed currency conversions`);
+      }
+      
+      if (result.failureCount > 0) {
+        Logger.log(`Warning: ${result.failureCount} movements could not be fixed. Check the logs for details.`);
+      }
+      
+      if (result.successCount === 0 && result.failureCount === 0) {
+        Logger.log('No movements with failed currency conversions found.');
+      }
+      
+    } catch (error) {
+      Logger.log(`Error fixing currency conversions: ${error.message}`);
+      throw error;
+    }
+  }
 }

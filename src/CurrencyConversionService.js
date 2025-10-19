@@ -134,17 +134,45 @@ class CurrencyConversionService {
    * Get all currency values for a given amount and currency
    * @param {number} amount - The amount to convert
    * @param {string} currency - Source currency
+   * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
    * @returns {Object} Object with clpValue, usdValue, gbpValue
    */
-  getAllCurrencyValues(amount, currency) {
-    const clpValue = this.convertToClp(amount, currency);
-    const usdValue = this.convertFromClp(clpValue, CURRENCIES.USD);
-    const gbpValue = this.convertFromClp(clpValue, CURRENCIES.GBP);
+  getAllCurrencyValues(amount, currency, maxRetries = 3) {
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Refresh rates on retry attempts
+        if (attempt > 1) {
+          this.refreshRates();
+        }
+        
+        const clpValue = this.convertToClp(amount, currency);
+        const usdValue = this.convertFromClp(clpValue, CURRENCIES.USD);
+        const gbpValue = this.convertFromClp(clpValue, CURRENCIES.GBP);
 
+        return {
+          clpValue: Math.round(clpValue * 100) / 100, // Round to 2 decimal places
+          usdValue: Math.round(usdValue * 100) / 100,
+          gbpValue: Math.round(gbpValue * 100) / 100
+        };
+      } catch (error) {
+        lastError = error;
+        Logger.log(`Currency conversion attempt ${attempt} failed: ${error.message}`);
+        
+        if (attempt < maxRetries) {
+          // Wait a bit before retrying (exponential backoff)
+          Utilities.sleep(1000 * attempt);
+        }
+      }
+    }
+    
+    // If all retries failed, return null values to indicate failure
+    Logger.log(`Currency conversion failed after ${maxRetries} attempts. Last error: ${lastError.message}`);
     return {
-      clpValue: Math.round(clpValue * 100) / 100, // Round to 2 decimal places
-      usdValue: Math.round(usdValue * 100) / 100,
-      gbpValue: Math.round(gbpValue * 100) / 100
+      clpValue: null,
+      usdValue: null,
+      gbpValue: null
     };
   }
 
@@ -155,5 +183,38 @@ class CurrencyConversionService {
   refreshRates() {
     this.loadConversionRates();
     Logger.log('Conversion rates refreshed');
+  }
+
+  /**
+   * Check if a currency value represents a failed conversion (#NUM! error)
+   * @param {*} value - The value to check
+   * @returns {boolean} True if the value represents a failed conversion
+   */
+  isFailedConversion(value) {
+    // Check for various forms of error values that might appear in Google Sheets
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') {
+      return value.includes('#NUM!') || value.includes('#ERROR!') || value.includes('#VALUE!') || value.trim() === '';
+    }
+    if (typeof value === 'number') {
+      return isNaN(value) || !isFinite(value);
+    }
+    return false;
+  }
+
+  /**
+   * Fix currency conversion for a movement by recalculating all currency values
+   * @param {number} amount - The original amount
+   * @param {string} currency - The original currency
+   * @returns {Object|null} Object with clpValue, usdValue, gbpValue or null if conversion fails
+   */
+  fixCurrencyConversion(amount, currency) {
+    try {
+      Logger.log(`Attempting to fix currency conversion for ${amount} ${currency}`);
+      return this.getAllCurrencyValues(amount, currency);
+    } catch (error) {
+      Logger.log(`Failed to fix currency conversion: ${error.message}`);
+      return null;
+    }
   }
 }

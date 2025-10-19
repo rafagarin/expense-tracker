@@ -424,5 +424,93 @@ class Database {
     Logger.log(`Updated movement ID ${movementId} with Splitwise ID ${splitwiseId} and marked as in splitwise`);
   }
 
+  /**
+   * Get movements that have failed currency conversions (#NUM! errors)
+   * @returns {Array} Array of movements with failed currency conversions
+   */
+  getMovementsWithFailedCurrencyConversion() {
+    const allMovements = this.getAllMovements();
+    const currencyConversionService = new CurrencyConversionService();
+    
+    return allMovements.filter(movement => {
+      const clpValue = movement[COLUMNS.CLP_VALUE];
+      const usdValue = movement[COLUMNS.USD_VALUE];
+      const gbpValue = movement[COLUMNS.GBP_VALUE];
+      
+      // Check if any of the currency values represent failed conversions
+      return currencyConversionService.isFailedConversion(clpValue) ||
+             currencyConversionService.isFailedConversion(usdValue) ||
+             currencyConversionService.isFailedConversion(gbpValue);
+    });
+  }
+
+  /**
+   * Fix currency conversion for a specific movement
+   * @param {number} movementId - The ID of the movement to fix
+   * @returns {boolean} True if the conversion was successfully fixed
+   */
+  fixMovementCurrencyConversion(movementId) {
+    // Find the row that contains the movement with the given ID
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+    
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return false;
+    }
+    
+    const movement = allMovements[movementRowIndex];
+    const amount = movement[COLUMNS.AMOUNT];
+    const currency = movement[COLUMNS.CURRENCY];
+    
+    // Skip if amount or currency is invalid
+    if (!amount || !currency || isNaN(amount)) {
+      Logger.log(`Movement ID ${movementId} has invalid amount (${amount}) or currency (${currency})`);
+      return false;
+    }
+    
+    // Get currency conversion service and attempt to fix the conversion
+    const currencyConversionService = new CurrencyConversionService();
+    const currencyValues = currencyConversionService.fixCurrencyConversion(amount, currency);
+    
+    if (!currencyValues) {
+      Logger.log(`Failed to fix currency conversion for movement ID ${movementId}`);
+      return false;
+    }
+    
+    // Update the movement with the fixed currency values
+    const sheetRowIndex = movementRowIndex + 2;
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(currencyValues.clpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(currencyValues.usdValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(currencyValues.gbpValue);
+    
+    Logger.log(`Fixed currency conversion for movement ID ${movementId}: CLP=${currencyValues.clpValue}, USD=${currencyValues.usdValue}, GBP=${currencyValues.gbpValue}`);
+    return true;
+  }
+
+  /**
+   * Fix currency conversions for all movements that have failed conversions
+   * @returns {Object} Object with success count and failure count
+   */
+  fixAllFailedCurrencyConversions() {
+    const failedMovements = this.getMovementsWithFailedCurrencyConversion();
+    Logger.log(`Found ${failedMovements.length} movements with failed currency conversions`);
+    
+    let successCount = 0;
+    let failureCount = 0;
+    
+    failedMovements.forEach(movement => {
+      const movementId = movement[COLUMNS.ID];
+      if (this.fixMovementCurrencyConversion(movementId)) {
+        successCount++;
+      } else {
+        failureCount++;
+      }
+    });
+    
+    Logger.log(`Currency conversion fix completed: ${successCount} successful, ${failureCount} failed`);
+    return { successCount, failureCount };
+  }
+
 
 }
