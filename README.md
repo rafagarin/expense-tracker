@@ -1,5 +1,5 @@
 This script helps me track my personal expenses. It:
-- Reads expense info from Splitwise and from my bank's email notifications, with the help of AI
+- Reads expense info from Splitwise, Monzo API, and from my bank's email notifications, with the help of AI
 - Waits for me to provide a description of each movement along with additional instructions, and then parses this info with AI
 - Adds movements to Splitwise
 - Keeps track of loans and their payments
@@ -22,16 +22,17 @@ The database columns are:
 - usd_value (same as amount but converted to USD)
 - gbp_value (same as amount but converted to GBP)
 - id (a unique id representing the movement)
-- source ("gmail" or "accounting")
-- gmail_id (ensures idempotency for movements that come from Gmail)
-- accounting_system_id (ensures idempotency for movements that come from an external accounting system)
+- source ("gmail", "monzo", or "accounting")
+- source_id (ensures idempotency for movements that come from Gmail, Monzo, or other sources)
+- accounting_system_id (ensures idempotency for movements that come from Splitwise)
 
 ### Workflow steps
 
 1. Entrypoint
-   The script is triggered periodically. Each time it is run, it fetches info from two source types:
+   The script is triggered periodically. Each time it is run, it fetches info from three source types:
    A. It reads the email notifications from my bank. For each email that has not yet been added to the spreadsheet, it extracts the relevant info and saves it as a new row.
-   B. It also reads movements from Splitwise.
+   B. It fetches transactions from Monzo API (last 8 days) and adds them to the spreadsheet.
+   C. It also reads movements from Splitwise.
    Additionally, one can also add movements manually, directly in the spreadsheet.
 2. User input
    The user then provides additional information about the movement, which is saved in the "user_description" column, along with instructions for the system, which are saved in the "comment" column.
@@ -41,14 +42,15 @@ The database columns are:
 
 ### Implementation
  
-**Technology Stack:** Google Apps Script, connecting to Gmail, Google Sheets, Splitwise API, and Google AI Studio API.
+**Technology Stack:** Google Apps Script, connecting to Gmail, Google Sheets, Monzo API, Splitwise API, and Google AI Studio API.
 
 **Project Structure:**
 `Code.js` - Main entry point with public API functions and custom menu setup
 `Config.js` - Configuration constants, database schema, and secure API key management
 `Database.js` - Google Sheets database operations (CRUD, idempotency, batch processing)
-`ExpenseTracker.js` - Core business logic orchestrating email processing, Splitwise integration, and movement creation
+`ExpenseTracker.js` - Core business logic orchestrating email processing, Monzo integration, Splitwise integration, and movement creation
 `GmailService.js` - Gmail integration for fetching and processing bank notification emails
+`MonzoService.js` - Monzo API integration for fetching and processing bank transactions
 `AIStudioService.js` - Google AI Studio integration for intelligent email parsing and category analysis using Gemini
 `SplitwiseService.js` - Splitwise API integration for fetching credit and debit movements
 `CategoryService.js` - Dynamic category management loading categories from Settings sheet
@@ -87,7 +89,7 @@ Out of scope:
 To set up the project:
 - Copy the spreadsheet
 - Copy the code
-- Add values for `GOOGLE_AI_STUDIO_API_KEY`, `SPLITWISE_API_KEY`, `SPLITWISE_GROUP_ID`, `SPLITWISE_OTHER_USER_ID`
+- Add values for `GOOGLE_AI_STUDIO_API_KEY`, `SPLITWISE_API_KEY`, `SPLITWISE_GROUP_ID`, `SPLITWISE_OTHER_USER_ID`, `MONZO_ACCESS_TOKEN`, `MONZO_REFRESH_TOKEN`, `MONZO_CLIENT_ID`, `MONZO_CLIENT_SECRET`
 - Use [clasp](https://github.com/google/clasp) to push updates to the code
 
 ### Pending

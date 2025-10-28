@@ -13,6 +13,7 @@ function onOpen() {
     .addItem('Run All (Main)', 'main')
     .addSeparator()
     .addItem('Process From Bank Emails', 'processBankEmails')
+    .addItem('Process From Monzo', 'processMonzoTransactions')
     .addItem('Process From Splitwise', 'processSplitwise')
     .addItem('Analyze Movements', 'analyzeMovements')
     .addItem('Push to Splitwise', 'pushToSplitwise')
@@ -37,6 +38,15 @@ async function processBankEmails() {
 async function analyzeMovements() {
   const expenseTracker = new ExpenseTracker();
   await expenseTracker.processUncategorizedMovements();
+}
+
+/**
+ * Process Monzo transactions and add them to the database
+ * This function fetches transactions from Monzo API
+ */
+async function processMonzoTransactions() {
+  const expenseTracker = new ExpenseTracker();
+  await expenseTracker.processMonzoTransactions();
 }
 
 /**
@@ -87,20 +97,24 @@ async function main(clientProperties = null) {
     Logger.log('=== Step 1: Processing bank emails ===');
     await expenseTracker.processBankEmails();
     
-    // Step 2: Process Splitwise movements (with idempotency - only new movements)
-    Logger.log('=== Step 2: Processing Splitwise movements ===');
+    // Step 2: Process Monzo transactions (with idempotency - only new transactions)
+    Logger.log('=== Step 2: Processing Monzo transactions ===');
+    await expenseTracker.processMonzoTransactions();
+    
+    // Step 3: Process Splitwise movements (with idempotency - only new movements)
+    Logger.log('=== Step 3: Processing Splitwise movements ===');
     await expenseTracker.processSplitwiseMovements();
     
-    // Step 3: Analyze movements with AI (only movements with user_description)
-    Logger.log('=== Step 3: Analyzing movements with AI ===');
+    // Step 4: Analyze movements with AI (only movements with user_description)
+    Logger.log('=== Step 4: Analyzing movements with AI ===');
     await expenseTracker.processUncategorizedMovements();
     
-    // Step 4: Push to Splitwise (only movements with "Awaiting Splitwise Upload" status)
-    Logger.log('=== Step 4: Pushing to Splitwise ===');
+    // Step 5: Push to Splitwise (only movements with "Awaiting Splitwise Upload" status)
+    Logger.log('=== Step 5: Pushing to Splitwise ===');
     await expenseTracker.pushToSplitwise();
     
-    // Step 5: Fix failed currency conversions
-    Logger.log('=== Step 5: Fixing failed currency conversions ===');
+    // Step 6: Fix failed currency conversions
+    Logger.log('=== Step 6: Fixing failed currency conversions ===');
     await expenseTracker.fixFailedCurrencyConversions();
     
     Logger.log('Main expense tracking workflow completed successfully.');

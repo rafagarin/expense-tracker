@@ -28,7 +28,7 @@ const COLUMNS = {
   ORIGINAL_AMOUNT: 15,
   ID: 16,
   SOURCE: 17,
-  GMAIL_ID: 18,
+  SOURCE_ID: 18,
   ACCOUNTING_SYSTEM_ID: 19
 };
 
@@ -68,7 +68,8 @@ const STATUS = {
 // Source values
 const SOURCES = {
   GMAIL: 'gmail',
-  ACCOUNTING: 'accounting'
+  ACCOUNTING: 'accounting',
+  MONZO: 'monzo'
 };
 
 // Splitwise configuration
@@ -89,6 +90,14 @@ const API_CONFIG = {
   SPLITWISE: {
     BASE_URL: 'https://secure.splitwise.com/api/v3.0',
     API_KEY_PROPERTY: 'SPLITWISE_API_KEY'
+  },
+  // Monzo API configuration
+  MONZO: {
+    BASE_URL: 'https://api.monzo.com',
+    ACCESS_TOKEN_PROPERTY: 'MONZO_ACCESS_TOKEN',
+    REFRESH_TOKEN_PROPERTY: 'MONZO_REFRESH_TOKEN',
+    CLIENT_ID_PROPERTY: 'MONZO_CLIENT_ID',
+    CLIENT_SECRET_PROPERTY: 'MONZO_CLIENT_SECRET'
   }
 };
 

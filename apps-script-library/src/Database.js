@@ -22,25 +22,46 @@ class Database {
   }
 
   /**
-   * Get all existing Gmail IDs for idempotency checking
+   * Get all existing source IDs for idempotency checking
+   * @param {string} source - The source to filter by (optional)
+   * @returns {Set} Set of existing source IDs
+   */
+  getExistingSourceIds(source = null) {
+    const existingSourceIds = new Set();
+    
+    if (this.sheet.getLastRow() > 1) {
+      const sourceIdRange = this.sheet.getRange(2, COLUMNS.SOURCE_ID + 1, this.sheet.getLastRow() - 1, 1);
+      const sourceIdValues = sourceIdRange.getValues();
+      
+      // If source is specified, we need to check both source_id and source columns
+      if (source) {
+        const allMovements = this.getAllMovements();
+        allMovements.forEach((movement, index) => {
+          if (movement[COLUMNS.SOURCE] === source && movement[COLUMNS.SOURCE_ID]) {
+            existingSourceIds.add(movement[COLUMNS.SOURCE_ID]);
+          }
+        });
+      } else {
+        // Get all source IDs regardless of source
+        sourceIdValues.forEach(row => {
+          if (row[0]) {
+            existingSourceIds.add(row[0]);
+          }
+        });
+      }
+    }
+    
+    const sourceText = source ? ` for source '${source}'` : '';
+    Logger.log(`Found ${existingSourceIds.size} existing source ID(s)${sourceText} in the sheet.`);
+    return existingSourceIds;
+  }
+
+  /**
+   * Get all existing Gmail IDs for idempotency checking (legacy method)
    * @returns {Set} Set of existing Gmail IDs
    */
   getExistingGmailIds() {
-    const existingGmailIds = new Set();
-    
-    if (this.sheet.getLastRow() > 1) {
-      const gmailIdRange = this.sheet.getRange(2, COLUMNS.GMAIL_ID + 1, this.sheet.getLastRow() - 1, 1);
-      const gmailIdValues = gmailIdRange.getValues();
-      
-      gmailIdValues.forEach(row => {
-        if (row[0]) {
-          existingGmailIds.add(row[0]);
-        }
-      });
-    }
-    
-    Logger.log(`Found ${existingGmailIds.size} existing movement(s) in the sheet.`);
-    return existingGmailIds;
+    return this.getExistingSourceIds(SOURCES.GMAIL);
   }
 
   /**
@@ -67,6 +88,7 @@ class Database {
     return existingAccountingSystemIds;
   }
 
+
   /**
    * Add a new movement to the database
    * @param {Array} movementRow - Array representing the movement data
@@ -83,7 +105,7 @@ class Database {
 
   /**
    * Add multiple movements to the database in batch
-   * @param {Array} movements - Array of movement objects with {ts, row, gmailId}
+   * @param {Array} movements - Array of movement objects with {ts, row, sourceId}
    */
   addMovementsBatch(movements) {
     // Sort by timestamp before adding
@@ -95,7 +117,8 @@ class Database {
 
     sortedMovements.forEach(item => {
       this.addMovement(item.row);
-      Logger.log(`Added movement from email ID: ${item.gmailId} for ${item.row[COLUMNS.CURRENCY]} ${item.row[COLUMNS.AMOUNT]} at ${item.row[COLUMNS.TIMESTAMP]} — ${item.row[COLUMNS.SOURCE_DESCRIPTION]}`);
+      const sourceId = item.gmailId || item.monzoId || item.accountingSystemId || 'unknown';
+      Logger.log(`Added movement from source ID: ${sourceId} for ${item.row[COLUMNS.CURRENCY]} ${item.row[COLUMNS.AMOUNT]} at ${item.row[COLUMNS.TIMESTAMP]} — ${item.row[COLUMNS.SOURCE_DESCRIPTION]}`);
     });
   }
 
@@ -155,15 +178,7 @@ class Database {
     return dataRange.getValues();
   }
 
-  /**
-   * Get movements by Gmail ID
-   * @param {string} gmailId - Gmail ID to search for
-   * @returns {Array} Array of matching movements
-   */
-  getMovementsByGmailId(gmailId) {
-    const allMovements = this.getAllMovements();
-    return allMovements.filter(movement => movement[COLUMNS.GMAIL_ID] === gmailId);
-  }
+
 
   /**
    * Get movements by accounting system ID

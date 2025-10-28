@@ -1,0 +1,67 @@
+Transactions
+
+Transactions are movements of funds into or out of an account. Negative transactions represent debits (ie. spending money) and positive transactions represent credits (ie. receiving money).
+
+Most properties on transactions are self-explanatory. We'll eventually get around to documenting them all, but in the meantime let's discuss the most interesting/confusing ones:
+
+Properties
+
+Property	Description
+amount	The amount of the transaction in minor units of currency. For example pennies in the case of GBP. A negative amount indicates a debit (most card transactions will have a negative amount)
+decline_reason	This is only present on declined transactions! Valid values are INSUFFICIENT_FUNDS, CARD_INACTIVE, CARD_BLOCKED, INVALID_CVC or OTHER.
+is_load	Top-ups to an account are represented as transactions with a positive amount and is_load = true. Other transactions such as refunds, reversals or chargebacks may have a positive amount but is_load = false
+settled	The timestamp at which the transaction settled. In most cases, this happens 24-48 hours after created. If this field is an empty string, the transaction is authorised but not yet "complete."
+category	The category can be set for each transaction by the user. Over time we learn which merchant goes in which category and auto-assign the category of a transaction. If the user hasn't set a category, we'll return the default category of the merchant on this transactions. Top-ups have category mondo. Valid values are general, eating_out, expenses, transport, cash, bills, entertainment, shopping, holidays, groceries.
+merchant	This contains the merchant_id of the merchant that this transaction was made at. If you pass ?expand[]=merchant in your request URL, it will contain lots of information about the merchant.
+
+
+List transactions
+
+$ http "https://api.monzo.com/transactions" \
+    "Authorization: Bearer $access_token" \
+    "account_id==$account_id"
+{
+    "transactions": [
+        {
+            "amount": -510,
+            "created": "2015-08-22T12:20:18Z",
+            "currency": "GBP",
+            "description": "THE DE BEAUVOIR DELI C LONDON        GBR",
+            "id": "tx_00008zIcpb1TB4yeIFXMzx",
+            "merchant": "merch_00008zIcpbAKe8shBxXUtl",
+            "metadata": {},
+            "notes": "Salmon sandwich 🍞",
+            "is_load": false,
+            "settled": "2015-08-23T12:20:18Z",
+            "category": "eating_out"
+        },
+        {
+            "amount": -679,
+            "created": "2015-08-23T16:15:03Z",
+            "currency": "GBP",
+            "description": "VUE BSL LTD            ISLINGTON     GBR",
+            "id": "tx_00008zL2INM3xZ41THuRF3",
+            "merchant": "merch_00008z6uFVhVBcaZzSQwCX",
+            "metadata": {},
+            "notes": "",
+            "is_load": false,
+            "settled": "2015-08-24T16:15:03Z",
+            "category": "eating_out"
+        },
+    ]
+}
+Returns a list of transactions on the user's account.
+
+ Strong Customer Authentication
+After a user has authenticated, your client can fetch all of their transactions, and after 5 minutes, it can only sync the last 90 days of transactions. If you need the user’s entire transaction history, you should consider fetching and storing it right after authentication.
+Request arguments
+
+Parameter	Description
+account_id
+Required	The account to retrieve transactions from.
+since
+Optional	Start time as RFC3339 encoded timestamp (2009-11-10T23:00:00Z)
+before
+Optional	End time time as RFC3339 encoded timestamp (2009-11-10T23:00:00Z)
+Pagination
+Optional	This endpoint can be paginated.

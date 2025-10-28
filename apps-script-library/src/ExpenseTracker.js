@@ -9,6 +9,7 @@ class ExpenseTracker {
     this.gmailService = new GmailService(clientProperties);
     this.googleAIStudioService = new GoogleAIStudioService(clientProperties);
     this.splitwiseService = new SplitwiseService(clientProperties);
+    this.monzoService = new MonzoService(clientProperties);
     this.currencyConversionService = new CurrencyConversionService();
   }
 
@@ -76,14 +77,6 @@ class ExpenseTracker {
     return this.database.getAllMovements();
   }
 
-  /**
-   * Get movements by Gmail ID
-   * @param {string} gmailId - Gmail ID to search for
-   * @returns {Array} Array of matching movements
-   */
-  getMovementsByGmailId(gmailId) {
-    return this.database.getMovementsByGmailId(gmailId);
-  }
 
   /**
    * Get movements by accounting system ID
@@ -365,6 +358,78 @@ class ExpenseTracker {
   }
 
   /**
+   * Process Monzo transactions and add them to the database
+   * Fetches transactions from the last 8 days and adds them with idempotency
+   */
+  async processMonzoTransactions() {
+    try {
+      Logger.log('Starting Monzo transactions processing...');
+
+      // 1. Test Monzo connection first
+      const connectionTest = await this.monzoService.testConnection();
+      if (!connectionTest) {
+        Logger.log('Monzo connection test failed. Please check your API credentials.');
+        return;
+      }
+
+      // 2. Get existing Monzo transaction IDs for idempotency check
+      const existingMonzoIds = this.database.getExistingSourceIds(SOURCES.MONZO);
+
+      // 3. Get recent transactions from Monzo (last 8 days)
+      const transactions = await this.monzoService.getRecentTransactions();
+
+      if (transactions.length === 0) {
+        Logger.log('No recent Monzo transactions found.');
+        return;
+      }
+
+      Logger.log(`Found ${transactions.length} recent transaction(s) from Monzo`);
+
+      // 4. Filter out transactions that already exist (idempotency)
+      const newTransactions = transactions.filter(transaction => {
+        const exists = existingMonzoIds.has(transaction.id);
+        if (exists) {
+          Logger.log(`Skipping transaction ${transaction.id} - already exists in database`);
+        }
+        return !exists;
+      });
+
+      if (newTransactions.length === 0) {
+        Logger.log('All Monzo transactions already exist in database.');
+        return;
+      }
+
+      Logger.log(`${newTransactions.length} new transaction(s) to add from Monzo`);
+
+      // 5. Convert Monzo transactions to our database format and add them
+      let nextId = this.database.getNextId();
+      const batchMovements = [];
+
+      for (const transaction of newTransactions) {
+        const movementRow = this.createMonzoMovementRow(transaction, nextId);
+        if (movementRow) {
+          batchMovements.push({
+            ts: transaction.settled || transaction.created,
+            row: movementRow,
+            monzoId: transaction.id
+          });
+          nextId++;
+        }
+      }
+
+      // 6. Add all movements to the database
+      if (batchMovements.length > 0) {
+        this.database.addMovementsBatch(batchMovements);
+        Logger.log(`Successfully processed ${batchMovements.length} Monzo transaction(s).`);
+      }
+
+    } catch (error) {
+      Logger.log(`Error processing Monzo transactions: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Process Splitwise movements and add them to the database
    * Uses Splitwise API to fetch both credit and debit movements
    */
@@ -435,6 +500,56 @@ class ExpenseTracker {
     } catch (error) {
       Logger.log(`Error processing Splitwise movements: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * Create a movement row for the database from Monzo transaction data
+   * @param {Object} transaction - Monzo transaction object
+   * @param {number} nextId - Next available ID for the movement
+   * @returns {Array} Movement row array for database insertion
+   */
+  createMonzoMovementRow(transaction, nextId) {
+    try {
+      // Convert Monzo transaction to our movement format
+      const movement = this.monzoService.convertTransactionToMovement(transaction, nextId);
+      
+      if (!movement) {
+        return null;
+      }
+
+      // Get currency conversions
+      const currencyValues = this.currencyConversionService.getAllCurrencyValues(
+        movement.amount, 
+        movement.currency,
+        3 // maxRetries
+      );
+
+      return [
+        new Date(movement.timestamp),           // timestamp (as Date object)
+        movement.direction,                     // direction
+        movement.type,                          // type
+        movement.amount,                        // amount
+        movement.currency,                      // currency
+        movement.sourceDescription,            // source_description
+        movement.userDescription,              // user_description
+        movement.comment,                      // comment
+        movement.aiComment,                    // ai_comment
+        movement.category,                     // category
+        movement.status,                       // status
+        movement.settledMovementId,            // settled_movement_id
+        currencyValues.clpValue,              // clp_value
+        currencyValues.usdValue,              // usd_value
+        currencyValues.gbpValue,              // gbp_value
+        movement.originalAmount,               // original_amount
+        movement.id,                           // id
+        SOURCES.MONZO,                         // source
+        movement.sourceId,                      // source_id
+        movement.accountingSystemId            // accounting_system_id
+      ];
+    } catch (error) {
+      Logger.log(`Failed to create Monzo movement row for transaction ${transaction.id}: ${error.message}`);
+      return null;
     }
   }
 
@@ -544,7 +659,7 @@ class ExpenseTracker {
       null,                                      // original_amount
       nextId,                                    // id
       SOURCES.GMAIL,                             // source
-      transaction.gmailId,                       // gmail_id
+      transaction.gmailId,                       // source_id
       null                                       // accounting_system_id
     ];
   }
