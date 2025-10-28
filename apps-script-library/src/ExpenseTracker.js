@@ -614,7 +614,7 @@ class ExpenseTracker {
       currencyValues.gbpValue,                   // gbp_value
       null,                                      // original_amount
       nextId,                                    // id
-      SOURCES.ACCOUNTING,                        // source
+      SOURCES.SPLITWISE,                        // source
       null,                                      // gmail_id
       splitwiseMovement.splitwiseId              // accounting_system_id
     ];

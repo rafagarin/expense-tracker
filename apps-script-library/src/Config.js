@@ -68,8 +68,8 @@ const STATUS = {
 // Source values
 const SOURCES = {
   GMAIL: 'gmail',
-  ACCOUNTING: 'accounting',
-  MONZO: 'monzo'
+  MONZO: 'monzo',
+  SPLITWISE: 'splitwise'
 };
 
 // Splitwise configuration

@@ -22,7 +22,7 @@ The database columns are:
 - usd_value (same as amount but converted to USD)
 - gbp_value (same as amount but converted to GBP)
 - id (a unique id representing the movement)
-- source ("gmail", "monzo", or "accounting")
+- source ("gmail", "monzo", or "splitwise")
 - source_id (ensures idempotency for movements that come from Gmail, Monzo, or other sources)
 - accounting_system_id (ensures idempotency for movements that come from Splitwise)
 
