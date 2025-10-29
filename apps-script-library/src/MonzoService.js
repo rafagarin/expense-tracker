@@ -132,8 +132,11 @@ class MonzoService {
       
       const transactions = await this.getTransactions(sinceDate);
       
-      Logger.log(`Found ${transactions.length} transactions from the last 8 days`);
-      return transactions;
+      // Filter out declined transactions (only present on declined transactions)
+      const successfulTransactions = transactions.filter(tx => !tx.decline_reason);
+      
+      Logger.log(`Found ${transactions.length} transactions from the last 8 days (${successfulTransactions.length} successful, ${transactions.length - successfulTransactions.length} declined)`);
+      return successfulTransactions;
     } catch (error) {
       Logger.log(`Failed to get recent Monzo transactions: ${error.message}`);
       return [];
