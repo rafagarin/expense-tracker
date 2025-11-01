@@ -245,16 +245,58 @@ class MonzoService {
   }
 
   /**
+   * Save tokens to script properties
+   * @param {Object} tokenData - Token data from Monzo API response
+   */
+  saveTokensToProperties(tokenData) {
+    try {
+      let properties;
+      
+      if (this.clientProperties) {
+        // Use client properties if provided
+        properties = this.clientProperties;
+      } else {
+        // Fall back to script properties (for backward compatibility)
+        properties = PropertiesService.getScriptProperties();
+      }
+      
+      // Save access token
+      properties.setProperty('MONZO_ACCESS_TOKEN', tokenData.access_token);
+      
+      // Save refresh token if provided (Monzo may issue a new one)
+      if (tokenData.refresh_token) {
+        properties.setProperty('MONZO_REFRESH_TOKEN', tokenData.refresh_token);
+      }
+      
+      Logger.log('Monzo tokens saved to properties successfully');
+    } catch (error) {
+      Logger.log(`Failed to save Monzo tokens to properties: ${error.message}`);
+    }
+  }
+
+  /**
    * Refresh the access token using refresh token
    * @param {string} refreshToken - Refresh token (optional, uses stored token if not provided)
    * @returns {Object|null} New token data or null if failed
    */
   async refreshAccessToken(refreshToken = null) {
     try {
+      // Ensure service is initialized to load tokens and credentials from properties
+      if ((!this.refreshToken && !refreshToken) || !this.clientId || !this.clientSecret) {
+        const initialized = this.initialize();
+        if (!initialized) {
+          throw new Error('Failed to initialize Monzo service. Please check your API credentials in script properties.');
+        }
+      }
+      
       const tokenToUse = refreshToken || this.refreshToken;
       
       if (!tokenToUse) {
-        throw new Error('No refresh token available');
+        throw new Error('No refresh token available. Please set MONZO_REFRESH_TOKEN in script properties.');
+      }
+
+      if (!this.clientId || !this.clientSecret) {
+        throw new Error('Missing client credentials. Please set MONZO_CLIENT_ID and MONZO_CLIENT_SECRET in script properties.');
       }
 
       const url = `${this.baseUrl}/oauth2/token`;
@@ -281,11 +323,14 @@ class MonzoService {
       const responseText = response.getContentText();
       const tokenData = JSON.parse(responseText);
       
-      // Update stored tokens
+      // Update stored tokens in memory
       this.accessToken = tokenData.access_token;
       if (tokenData.refresh_token) {
         this.refreshToken = tokenData.refresh_token;
       }
+      
+      // Save updated tokens to script properties
+      this.saveTokensToProperties(tokenData);
       
       Logger.log('Monzo access token refreshed successfully');
       return tokenData;

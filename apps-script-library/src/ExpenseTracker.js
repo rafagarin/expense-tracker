@@ -365,17 +365,24 @@ class ExpenseTracker {
     try {
       Logger.log('Starting Monzo transactions processing...');
 
-      // 1. Test Monzo connection first
+      // 1. Refresh access token first (tokens expire after 6 hours)
+      Logger.log('Refreshing Monzo access token...');
+      const tokenRefreshResult = await this.monzoService.refreshAccessToken();
+      if (!tokenRefreshResult) {
+        Logger.log('Warning: Failed to refresh Monzo access token. Continuing with existing token if available.');
+      }
+
+      // 2. Test Monzo connection
       const connectionTest = await this.monzoService.testConnection();
       if (!connectionTest) {
         Logger.log('Monzo connection test failed. Please check your API credentials.');
         return;
       }
 
-      // 2. Get existing Monzo transaction IDs for idempotency check
+      // 3. Get existing Monzo transaction IDs for idempotency check
       const existingMonzoIds = this.database.getExistingSourceIds(SOURCES.MONZO);
 
-      // 3. Get recent transactions from Monzo (last 8 days)
+      // 4. Get recent transactions from Monzo (last 8 days)
       const transactions = await this.monzoService.getRecentTransactions();
 
       if (transactions.length === 0) {
@@ -385,7 +392,7 @@ class ExpenseTracker {
 
       Logger.log(`Found ${transactions.length} recent transaction(s) from Monzo`);
 
-      // 4. Filter out transactions that already exist (idempotency)
+      // 5. Filter out transactions that already exist (idempotency)
       const newTransactions = transactions.filter(transaction => {
         const exists = existingMonzoIds.has(transaction.id);
         if (exists) {
@@ -401,7 +408,7 @@ class ExpenseTracker {
 
       Logger.log(`${newTransactions.length} new transaction(s) to add from Monzo`);
 
-      // 5. Convert Monzo transactions to our database format and add them
+      // 6. Convert Monzo transactions to our database format and add them
       let nextId = this.database.getNextId();
       const batchMovements = [];
 
@@ -417,7 +424,7 @@ class ExpenseTracker {
         }
       }
 
-      // 6. Add all movements to the database
+      // 7. Add all movements to the database
       if (batchMovements.length > 0) {
         this.database.addMovementsBatch(batchMovements);
         Logger.log(`Successfully processed ${batchMovements.length} Monzo transaction(s).`);
