@@ -434,10 +434,6 @@ class Database {
     // 2. Validate amounts
     const originalAmount = originalMovement[COLUMNS.AMOUNT];
     const splitAmount = splitInfo.split_amount;
-    if (splitAmount >= originalAmount || splitAmount <= 0) {
-      Logger.log(`Invalid split amount ${splitAmount} for original amount ${originalAmount}. Aborting split.`);
-      return null;
-    }
     const remainingAmount = originalAmount - splitAmount;
 
     // 3. Handle currency value splitting
