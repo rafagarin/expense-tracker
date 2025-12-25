@@ -99,8 +99,14 @@ class Database {
     if (this.idExists(movementId)) {
       throw new Error(`Movement with ID ${movementId} already exists in the database. This would create a duplicate ID.`);
     }
-    
+
     this.sheet.appendRow(movementRow);
+
+    // Set the formula for the YEAR_MONTH column on the newly added row.
+    const newRowIndex = this.sheet.getLastRow();
+    const yearMonthColumn = COLUMNS.YEAR_MONTH + 1;
+    const formula = `=TEXT($A${newRowIndex}, "YYYY-MM")`;
+    this.sheet.getRange(newRowIndex, yearMonthColumn).setFormula(formula);
   }
 
   /**

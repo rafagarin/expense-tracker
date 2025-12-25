@@ -29,7 +29,8 @@ const COLUMNS = {
   ID: 16,
   SOURCE: 17,
   SOURCE_ID: 18,
-  ACCOUNTING_SYSTEM_ID: 19
+  ACCOUNTING_SYSTEM_ID: 19,
+  YEAR_MONTH: 20
 };
 
 // Supported currencies
