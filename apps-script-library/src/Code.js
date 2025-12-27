@@ -118,7 +118,7 @@ async function main(clientProperties = null) {
     Logger.log('=== Step 4: Applying autofill rules ===');
     await expenseTracker.applyAutofillRules();
     
-    // Step 5: Analyze movements with AI (only movements with user_description)
+    // Step 5: Categorize movements with AI (only movements with user_description)
     Logger.log('=== Step 5: Analyzing movements with AI ===');
     await expenseTracker.processUncategorizedMovements();
     

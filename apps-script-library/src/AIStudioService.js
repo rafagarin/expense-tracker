@@ -229,6 +229,12 @@ Available Categories (choose ONLY one):
 ${categoriesList}
 
 ---
+NEUTRAL TRANSACTION ANALYSIS:
+Analyze the description to see if this is a neutral transaction (that is, not an inflow or an outlfow).
+Set "is_neutral" to true and "category" to null if the user description indicates a transfer between the user's own accounts (e.g., "self transfer"), or if the user's instructions indicate the movement should be ignored (eg "neutral" or "ignore", etc).
+For all other transactions, set "is_neutral" to false.
+
+---
 SPLIT ANALYSIS:
 There are two types of splits. Determine if a split is needed and what type it is.
 
@@ -247,6 +253,7 @@ Return a JSON object with the following structure. Do NOT include any other text
 
 {
   "category": "category_name" | null,
+  "is_neutral": true | false,
   "needs_split": true | false,
   "split_type": "DEBIT" | "EXPENSE" | null,
   "split_amount": number | null,
@@ -260,12 +267,14 @@ FIELD-SPECIFIC INSTRUCTIONS:
 
 -   **If no split is needed ("needs_split": false)**:
     -   "category": The single best category for the expense.
+    -   "is_neutral": true if it's a self-transfer or neutral movement, otherwise false.
     -   "needs_split": false.
     -   Set all "split_*" fields to null.
     -   "clean_description": The user description, cleaned of any non-essential comments.
 
 -   **If a DEBIT split is needed ("split_type": "DEBIT")**:
     -   "category": The category for YOUR personal portion of the expense.
+    -   "is_neutral": false.
     -   "needs_split": true.
     -   "split_type": "DEBIT".
     -   "split_amount": The amount of YOUR personal portion.
@@ -275,6 +284,7 @@ FIELD-SPECIFIC INSTRUCTIONS:
 
 -   **If an EXPENSE split is needed ("split_type": "EXPENSE")**:
     -   "category": null. The items will be categorized later by the user.
+    -   "is_neutral": false.
     -   "needs_split": true.
     -   "split_type": "EXPENSE".
     -   "split_amount": The amount to be split OFF into a NEW movement.
@@ -286,17 +296,22 @@ FIELD-SPECIFIC INSTRUCTIONS:
 Example 1 (No Split):
 User Description: "Lunch at cafe"
 Amount: CLP 10000
-Output: { "category": "restaurants", "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null, "clean_description": "Lunch at cafe" }
+Output: { "category": "restaurants", "is_neutral": false, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null, "clean_description": "Lunch at cafe" }
 
 Example 2 (DEBIT Split):
 User Description: "Dinner with friends, my part is 25"
 Amount: GBP 75
-Output: { "category": "restaurants", "needs_split": true, "split_type": "DEBIT", "split_amount": 25, "split_description": "Dinner with friends (shared part)", "split_category": "restaurants", "clean_description": "Dinner with friends (my part)" }
+Output: { "category": "restaurants", "is_neutral": false, "needs_split": true, "split_type": "DEBIT", "split_amount": 25, "split_description": "Dinner with friends (shared part)", "split_category": "restaurants", "clean_description": "Dinner with friends (my part)" }
 
 Example 3 (EXPENSE Split):
 User Description: "Supermarket. comment: split 15 for household items"
 Amount: USD 100
-Output: { "category": null, "needs_split": true, "split_type": "EXPENSE", "split_amount": 15, "split_description": "household items", "split_category": null, "clean_description": "Supermarket" }`;
+Output: { "category": null, "is_neutral": false, "needs_split": true, "split_type": "EXPENSE", "split_amount": 15, "split_description": "household items", "split_category": null, "clean_description": "Supermarket" }
+
+Example 4 (Self Transfer):
+User Description: "Move money to my savings account"
+Amount: USD 500
+Output: { "category": null, "is_neutral": true, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null, "clean_description": "Internal account transfer" }`;
 }
 
   /**
@@ -329,24 +344,30 @@ Output: { "category": null, "needs_split": true, "split_type": "EXPENSE", "split
         return null;
       }
       
+      // Validate that the category is one of our valid categories, if it exists
+      const validCategories = this.categoryService.getCategoryNames();
+      // For neutral transactions, category should be None.
+      if (parsedData.is_neutral === true) {
+        parsedData.category = 'None';
+      } else if (parsedData.category && !validCategories.includes(parsedData.category)) {
+        Logger.log(`Invalid category in response: ${parsedData.category}`);
+        return null;
+      }
+
       // Validate required fields
       const isExpenseSplit = parsedData.needs_split && parsedData.split_type === 'EXPENSE';
-      
       if (!isExpenseSplit && !parsedData.category) {
         Logger.log('Missing required category field in analysis response');
         Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
         return null;
       }
 
-      // Validate that the category is one of our valid categories, if it exists
-      const validCategories = this.categoryService.getCategoryNames();
-      if (parsedData.category && !validCategories.includes(parsedData.category)) {
-        Logger.log(`Invalid category in response: ${parsedData.category}`);
-        return null;
-      }
-
       // If needs_split is true, validate split fields
       if (parsedData.needs_split === true) {
+        if (parsedData.is_neutral === true) {
+          Logger.log('Invalid split data in response: neutral transactions cannot be split.');
+          return null;
+        }
         if (typeof parsedData.split_amount !== 'number' || !parsedData.split_type) {
           Logger.log('Invalid split data in response: missing split_amount or split_type');
           Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
@@ -364,6 +385,7 @@ Output: { "category": null, "needs_split": true, "split_type": "EXPENSE", "split
 
       return {
         category: parsedData.category || null,
+        is_neutral: parsedData.is_neutral === true,
         needs_split: parsedData.needs_split === true,
         split_type: parsedData.split_type || null,
         split_amount: parsedData.split_amount || null,

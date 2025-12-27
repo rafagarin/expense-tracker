@@ -131,6 +131,12 @@ class ExpenseTracker {
           const analysisResult = await this.googleAIStudioService.analyzeCategory(fullDescription, movementData);
 
           if (analysisResult) {
+            // If AI flags as neutral, programmatically set direction, type, and category.
+            if (analysisResult.is_neutral) {
+              analysisResult.direction = DIRECTIONS.NEUTRAL;
+              analysisResult.type = MOVEMENT_TYPES.NEUTRAL;
+            }
+
             // If the AI suggests splitting an expense for categorization purposes,
             // we perform that split instead of assigning a category now. The resulting
             // movements will be uncategorized for the user to detail further.
@@ -156,7 +162,7 @@ class ExpenseTracker {
               // 4. Original Logic: Update the movement with the analysis results
               this.database.updateMovementWithAnalysis(movementId, analysisResult);
               analyzedCount++;
-              Logger.log(`Analyzed movement ID ${movementId}: "${userDescription}" -> category: ${analysisResult.category}, needs_split: ${analysisResult.needs_split}`);
+              Logger.log(`Analyzed movement ID ${movementId}: "${userDescription}" -> category: ${analysisResult.category || 'none'}, direction: ${analysisResult.direction || 'unchanged'}, type: ${analysisResult.type || 'unchanged'}, needs_split: ${analysisResult.needs_split}`);
 
               // 5. If the movement needs to be split into a personal expense and a debit
               if (analysisResult.needs_split) {

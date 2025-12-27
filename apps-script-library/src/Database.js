@@ -312,8 +312,16 @@ class Database {
     // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
     const sheetRowIndex = movementRowIndex + 2;
     
-    // Update category
+    // Update category. This can be null (e.g., for neutral transfers).
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(analysisResult.category);
+    
+    // Update direction and type if provided by the analysis logic
+    if (analysisResult.direction) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.DIRECTION + 1).setValue(analysisResult.direction);
+    }
+    if (analysisResult.type) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.TYPE + 1).setValue(analysisResult.type);
+    }
     
     // If the movement is not being split, we can update the user description to the cleaned
     // version from the AI and clear the comment field, as it has been processed.
@@ -323,7 +331,10 @@ class Database {
       this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue('');
     }
     
-    Logger.log(`Updated movement ID ${movementId} with analysis results: category=${analysisResult.category}`);
+    const logCategory = analysisResult.category || 'none';
+    const logDirection = analysisResult.direction || 'unchanged';
+    const logType = analysisResult.type || 'unchanged';
+    Logger.log(`Updated movement ID ${movementId} with analysis results: category=${logCategory}, direction=${logDirection}, type=${logType}`);
   }
 
   /**

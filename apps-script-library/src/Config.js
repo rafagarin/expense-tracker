@@ -46,7 +46,8 @@ const MOVEMENT_TYPES = {
   CASH: 'Cash',
   DEBIT: 'Debit',
   CREDIT: 'Credit',
-  DEBIT_REPAYMENT: 'Debit Repayment'
+  DEBIT_REPAYMENT: 'Debit Repayment',
+  NEUTRAL: 'Neutral',
 };
 
 // Movement directions
