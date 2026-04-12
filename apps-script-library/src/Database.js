@@ -65,31 +65,6 @@ class Database {
   }
 
   /**
-   * Get existing accounting system IDs for idempotency checking
-   * @returns {Set} Set of existing accounting system IDs
-   */
-  getExistingAccountingSystemIds() {
-    const existingAccountingSystemIds = new Set();
-    
-    if (this.sheet.getLastRow() > 1) {
-      const accountingSystemIdRange = this.sheet.getRange(2, COLUMNS.ACCOUNTING_SYSTEM_ID + 1, this.sheet.getLastRow() - 1, 1);
-      const accountingSystemIdValues = accountingSystemIdRange.getValues();
-      
-      accountingSystemIdValues.forEach(row => {
-        if (row[0]) {
-          const idStr = row[0].toString();
-          existingAccountingSystemIds.add(idStr);
-          Logger.log(`Found existing accounting system ID: ${idStr} (type: ${typeof idStr})`);
-        }
-      });
-    }
-    
-    Logger.log(`Found ${existingAccountingSystemIds.size} existing accounting system movement(s) in the sheet.`);
-    return existingAccountingSystemIds;
-  }
-
-
-  /**
    * Add a new movement to the database
    * @param {Array} movementRow - Array representing the movement data
    */
@@ -185,16 +160,6 @@ class Database {
   }
 
 
-
-  /**
-   * Get movements by accounting system ID
-   * @param {string} accountingSystemId - Accounting system ID to search for
-   * @returns {Array} Array of matching movements
-   */
-  getMovementsByAccountingSystemId(accountingSystemId) {
-    const allMovements = this.getAllMovements();
-    return allMovements.filter(movement => movement[COLUMNS.ACCOUNTING_SYSTEM_ID] === accountingSystemId);
-  }
 
   /**
    * Get movements that have user_description but no category
@@ -511,17 +476,6 @@ class Database {
   }
 
   /**
-   * Get movements that are awaiting Splitwise upload
-   * @returns {Array} Array of movements awaiting Splitwise upload
-   */
-  getMovementsPendingSplitwiseSettlement() {
-    const allMovements = this.getAllMovements();
-    return allMovements.filter(movement => 
-      movement[COLUMNS.STATUS] === STATUS.PENDING_SPLITWISE_SETTLEMENT
-    );
-  }
-
-  /**
    * Get debit movements that are pending settlement
    * @returns {Array} Array of debit movements pending settlement
    */
@@ -579,31 +533,6 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(status);
     
     Logger.log(`Updated movement ID ${movementId} status to: ${status}`);
-  }
-
-  /**
-   * Update movement with Splitwise information after pushing to Splitwise
-   * @param {number} movementId - The ID of the movement to update
-   * @param {string} splitwiseId - The Splitwise expense ID
-   */
-  updateMovementWithSplitwiseInfo(movementId, splitwiseId) {
-    // Find the row that contains the movement with the given ID
-    const allMovements = this.getAllMovements();
-    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
-    
-    if (movementRowIndex === -1) {
-      Logger.log(`Movement with ID ${movementId} not found in database`);
-      return;
-    }
-    
-    // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
-    const sheetRowIndex = movementRowIndex + 2;
-    
-    // Update Splitwise information
-    this.sheet.getRange(sheetRowIndex, COLUMNS.ACCOUNTING_SYSTEM_ID + 1).setValue(splitwiseId);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(STATUS.IN_SPLITWISE);
-    
-    Logger.log(`Updated movement ID ${movementId} with Splitwise ID ${splitwiseId} and marked as in splitwise`);
   }
 
   /**

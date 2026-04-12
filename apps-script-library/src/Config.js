@@ -61,24 +61,16 @@ const DIRECTIONS = {
 // Status values
 const STATUS = {
   SETTLED: 'Settled',
-  PENDING_DIRECT_SETTLEMENT: 'Pending Settlement',
-  PENDING_SPLITWISE_SETTLEMENT: 'Awaiting Splitwise Upload',
-  IN_SPLITWISE: 'In Splitwise'
+  PENDING_DIRECT_SETTLEMENT: 'Pending Settlement'
 };
 
 
 // Source values
 const SOURCES = {
   GMAIL: 'gmail',
-  MONZO: 'monzo',
-  SPLITWISE: 'splitwise'
+  MONZO: 'monzo'
 };
 
-// Splitwise configuration
-const SPLITWISE_CONFIG = {
-  DEFAULT_GROUP_ID: 0, // Set this to your default group ID, or 0 for personal expenses
-  OTHER_USER_ID: null // User ID of the person you commonly split expenses with
-};
 
 // API Configuration
 const API_CONFIG = {
@@ -87,11 +79,6 @@ const API_CONFIG = {
     BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
     MODEL: 'gemini-2.0-flash-lite',
     API_KEY_PROPERTY: 'GOOGLE_AI_STUDIO_API_KEY'
-  },
-  // Splitwise API configuration
-  SPLITWISE: {
-    BASE_URL: 'https://secure.splitwise.com/api/v3.0',
-    API_KEY_PROPERTY: 'SPLITWISE_API_KEY'
   },
   // Monzo API configuration
   MONZO: {
