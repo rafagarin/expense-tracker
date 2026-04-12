@@ -182,7 +182,7 @@ class Database {
   getMovementsToAutofill() {
     const allMovements = this.getAllMovements();
     return allMovements.filter(movement => {
-      const hasSourceDescription = movement[COLUMNS.SOURCE_DESCRIPTION] && movement[COLUMNS.SOURCE_DESCRIPTION].trim() !== '';
+      const hasSourceDescription = movement[COLUMNS.SOURCE_DESCRIPTION] && String(movement[COLUMNS.SOURCE_DESCRIPTION]).trim() !== '';
       const hasNoUserDescription = !movement[COLUMNS.USER_DESCRIPTION] || movement[COLUMNS.USER_DESCRIPTION].trim() === '';
       return hasSourceDescription && hasNoUserDescription;
     });
