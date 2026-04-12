@@ -276,7 +276,15 @@ class Database {
     
     // Convert to 1-based row index (add 2 because getAllMovements() starts from row 2, and arrays are 0-based)
     const sheetRowIndex = movementRowIndex + 2;
-    
+
+    // All inflow movements must have category: None.
+    // Check the effective direction: prefer the analysis override, fall back to the existing movement direction.
+    const existingDirection = allMovements[movementRowIndex][COLUMNS.DIRECTION];
+    const effectiveDirection = analysisResult.direction || existingDirection;
+    if (effectiveDirection === DIRECTIONS.INFLOW) {
+      analysisResult.category = 'None';
+    }
+
     // Update category. This can be null (e.g., for neutral transfers).
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(analysisResult.category);
     

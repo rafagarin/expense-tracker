@@ -229,6 +229,14 @@ Available Categories (choose ONLY one):
 ${categoriesList}
 
 ---
+EARNING ANALYSIS:
+Set "is_earning" to true if:
+- The user description explicitly indicates money received as income (e.g., "salary", "earning", "income", "paycheck", "wages", "freelance payment", "got paid", "payment received", "commission", "bonus", "dividends", "rental income").
+- The direction is already "Inflow" (meaning money is coming in to the user).
+When "is_earning" is true, set "category" to null (the system will assign "None" automatically).
+For all other transactions, set "is_earning" to false.
+
+---
 NEUTRAL TRANSACTION ANALYSIS:
 Analyze the description to see if this is a neutral transaction (that is, not an inflow or an outlfow).
 Set "is_neutral" to true and "category" to null if the user description indicates a transfer between the user's own accounts (e.g., "self transfer"), or if the user's instructions indicate the movement should be ignored (eg "neutral" or "ignore", etc).
@@ -253,6 +261,7 @@ Return a JSON object with the following structure. Do NOT include any other text
 
 {
   "category": "category_name" | null,
+  "is_earning": true | false,
   "is_neutral": true | false,
   "needs_split": true | false,
   "split_type": "DEBIT" | "EXPENSE" | null,
@@ -349,6 +358,9 @@ Output: { "category": null, "is_neutral": true, "needs_split": false, "split_typ
       // For neutral transactions, category should be None.
       if (parsedData.is_neutral === true) {
         parsedData.category = 'None';
+      // For earning transactions (inflow), category should be None.
+      } else if (parsedData.is_earning === true) {
+        parsedData.category = 'None';
       } else if (parsedData.category && !validCategories.includes(parsedData.category)) {
         Logger.log(`Invalid category in response: ${parsedData.category}`);
         return null;
@@ -356,7 +368,8 @@ Output: { "category": null, "is_neutral": true, "needs_split": false, "split_typ
 
       // Validate required fields
       const isExpenseSplit = parsedData.needs_split && parsedData.split_type === 'EXPENSE';
-      if (!isExpenseSplit && !parsedData.category) {
+      const isEarningOrNeutral = parsedData.is_earning === true || parsedData.is_neutral === true;
+      if (!isExpenseSplit && !isEarningOrNeutral && !parsedData.category) {
         Logger.log('Missing required category field in analysis response');
         Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
         return null;
@@ -385,6 +398,7 @@ Output: { "category": null, "is_neutral": true, "needs_split": false, "split_typ
 
       return {
         category: parsedData.category || null,
+        is_earning: parsedData.is_earning === true,
         is_neutral: parsedData.is_neutral === true,
         needs_split: parsedData.needs_split === true,
         split_type: parsedData.split_type || null,

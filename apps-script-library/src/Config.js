@@ -47,6 +47,7 @@ const MOVEMENT_TYPES = {
   DEBIT: 'Debit',
   CREDIT: 'Credit',
   DEBIT_REPAYMENT: 'Debit Repayment',
+  EARNING: 'Earning',
   NEUTRAL: 'Neutral',
 };
 

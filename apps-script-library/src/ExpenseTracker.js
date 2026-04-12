@@ -121,6 +121,12 @@ class ExpenseTracker {
           const analysisResult = await this.googleAIStudioService.analyzeCategory(fullDescription, movementData);
 
           if (analysisResult) {
+            // If AI flags as earning, programmatically set direction, type, and category.
+            if (analysisResult.is_earning) {
+              analysisResult.direction = DIRECTIONS.INFLOW;
+              analysisResult.type = MOVEMENT_TYPES.EARNING;
+            }
+
             // If AI flags as neutral, programmatically set direction, type, and category.
             if (analysisResult.is_neutral) {
               analysisResult.direction = DIRECTIONS.NEUTRAL;
