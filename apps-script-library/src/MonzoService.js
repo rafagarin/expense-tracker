@@ -179,13 +179,29 @@ class MonzoService {
       // Use settled date if available, otherwise use created date
       const timestamp = transaction.settled || transaction.created;
 
+      // Determine source description from merchant, notes, or raw description
+      let baseDescription;
+      if (transaction.merchant && transaction.merchant.name) {
+        baseDescription = transaction.merchant.name;
+      } else if (transaction.notes && transaction.notes.trim()) {
+        baseDescription = transaction.notes.trim();
+      } else {
+        baseDescription = transaction.description;
+      }
+
+      // Append original description if it's different and not empty, to provide more context
+      let sourceDescription = baseDescription;
+      if (transaction.description && transaction.description.trim() && baseDescription !== transaction.description) {
+        sourceDescription += ` (${transaction.description})`;
+      }
+
       return {
         timestamp: timestamp,
         direction: direction,
         type: type,
         amount: amount,
         currency: transaction.currency,
-        sourceDescription: transaction.description,
+        sourceDescription: sourceDescription,
         userDescription: null, // User fills this manually
         comment: null,
         aiComment: null,
