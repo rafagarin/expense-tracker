@@ -140,7 +140,6 @@ class ExpenseTracker {
               const splitInfo = {
                 split_amount: analysisResult.split_amount,
                 split_description: analysisResult.split_description,
-                clean_description: analysisResult.clean_description,
               };
 
               // This new function splits one expense into two, leaving both uncategorized.
@@ -166,7 +165,6 @@ class ExpenseTracker {
                   split_amount: analysisResult.split_amount,
                   split_category: analysisResult.split_category,
                   split_description: analysisResult.split_description,
-                  clean_description: analysisResult.clean_description,
                 };
 
                 const newDebitMovementId = this.database.splitMovement(movementId, splitInfo);

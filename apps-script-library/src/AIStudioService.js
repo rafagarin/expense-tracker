@@ -267,8 +267,7 @@ Return a JSON object with the following structure. Do NOT include any other text
   "split_type": "DEBIT" | "EXPENSE" | null,
   "split_amount": number | null,
   "split_description": "string" | null,
-  "split_category": "category_name" | null,
-  "clean_description": "string"
+  "split_category": "category_name" | null
 }
 
 ---
@@ -279,7 +278,6 @@ FIELD-SPECIFIC INSTRUCTIONS:
     -   "is_neutral": true if it's a self-transfer or neutral movement, otherwise false.
     -   "needs_split": false.
     -   Set all "split_*" fields to null.
-    -   "clean_description": The user description, cleaned of any non-essential comments.
 
 -   **If a DEBIT split is needed ("split_type": "DEBIT")**:
     -   "category": The category for YOUR personal portion of the expense.
@@ -287,9 +285,8 @@ FIELD-SPECIFIC INSTRUCTIONS:
     -   "needs_split": true.
     -   "split_type": "DEBIT".
     -   "split_amount": The amount of YOUR personal portion.
-    -   "split_description": A description for the part OTHERS owe you (e.g., "John's part of dinner"). This will be used for the new Debit movement.
+    -   "split_description": A plain label for the part OTHERS owe you (e.g., "John's part of dinner").
     -   "split_category": Same as "category".
-    -   "clean_description": A clean description for the overall event (e.g., "Dinner with John"). This will be used for your personal expense portion.
 
 -   **If an EXPENSE split is needed ("split_type": "EXPENSE")**:
     -   "category": null. The items will be categorized later by the user.
@@ -297,30 +294,29 @@ FIELD-SPECIFIC INSTRUCTIONS:
     -   "needs_split": true.
     -   "split_type": "EXPENSE".
     -   "split_amount": The amount to be split OFF into a NEW movement.
-    -   "split_description": A description for the NEW movement (e.g., "household items").
+    -   "split_description": A plain label for the NEW movement (e.g., "household items").
     -   "split_category": null.
-    -   "clean_description": The original description, cleaned of split instructions (e.g., "Supermarket"). This will be used for the remaining part of the original movement.
 
 ---
 Example 1 (No Split):
 User Description: "Lunch at cafe"
 Amount: CLP 10000
-Output: { "category": "restaurants", "is_neutral": false, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null, "clean_description": "Lunch at cafe" }
+Output: { "category": "restaurants", "is_earning": false, "is_neutral": false, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null }
 
 Example 2 (DEBIT Split):
 User Description: "Dinner with friends, my part is 25"
 Amount: GBP 75
-Output: { "category": "restaurants", "is_neutral": false, "needs_split": true, "split_type": "DEBIT", "split_amount": 25, "split_description": "Dinner with friends (shared part)", "split_category": "restaurants", "clean_description": "Dinner with friends (my part)" }
+Output: { "category": "restaurants", "is_earning": false, "is_neutral": false, "needs_split": true, "split_type": "DEBIT", "split_amount": 25, "split_description": "Dinner with friends (shared part)", "split_category": "restaurants" }
 
 Example 3 (EXPENSE Split):
 User Description: "Supermarket. comment: split 15 for household items"
 Amount: USD 100
-Output: { "category": null, "is_neutral": false, "needs_split": true, "split_type": "EXPENSE", "split_amount": 15, "split_description": "household items", "split_category": null, "clean_description": "Supermarket" }
+Output: { "category": null, "is_earning": false, "is_neutral": false, "needs_split": true, "split_type": "EXPENSE", "split_amount": 15, "split_description": "household items", "split_category": null }
 
 Example 4 (Self Transfer):
 User Description: "Move money to my savings account"
 Amount: USD 500
-Output: { "category": null, "is_neutral": true, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null, "clean_description": "Internal account transfer" }`;
+Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null }`;
 }
 
   /**
@@ -405,7 +401,6 @@ Output: { "category": null, "is_neutral": true, "needs_split": false, "split_typ
         split_amount: parsedData.split_amount || null,
         split_description: parsedData.split_description || null,
         split_category: parsedData.split_category || null,
-        clean_description: parsedData.clean_description || parsedData.category,
       };
     } catch (error) {
       Logger.log(`Error parsing category analysis response: ${error.message}`);

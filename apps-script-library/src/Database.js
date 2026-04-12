@@ -296,11 +296,9 @@ class Database {
       this.sheet.getRange(sheetRowIndex, COLUMNS.TYPE + 1).setValue(analysisResult.type);
     }
     
-    // If the movement is not being split, we can update the user description to the cleaned
-    // version from the AI and clear the comment field, as it has been processed.
-    // For split movements, this is handled within the respective split functions.
-    if (!analysisResult.needs_split && analysisResult.clean_description) {
-      this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(analysisResult.clean_description);
+    // Clear the comment field — it has been consumed by AI analysis.
+    // For split movements, this is also handled within the respective split functions.
+    if (!analysisResult.needs_split) {
       this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue('');
     }
     
@@ -361,10 +359,11 @@ class Database {
     
     // 1. Modify the original row in place to be the personal portion
     const sheetRowIndex = originalMovementIndex + 2;
+    const originalUserDescription = originalMovement[COLUMNS.USER_DESCRIPTION];
     this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(splitInfo.split_amount);
     // The category is set by updateMovementWithAnalysis, but we ensure it's correct here.
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(splitInfo.clean_description);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(`${originalUserDescription} (own part)`);
     this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment
     this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(`Split into #${nextId}`); // Reference the debit line it was split into
     this.sheet.getRange(sheetRowIndex, COLUMNS.ORIGINAL_AMOUNT + 1).setValue(originalMovement[COLUMNS.AMOUNT]); // Set original amount
@@ -379,7 +378,7 @@ class Database {
     sharedMovement[COLUMNS.ID] = nextId;
     sharedMovement[COLUMNS.AMOUNT] = remainingAmount;
     sharedMovement[COLUMNS.CATEGORY] = splitInfo.split_category; // Keep category consistent
-    sharedMovement[COLUMNS.USER_DESCRIPTION] = splitInfo.split_description; // Use description for the debit part
+    sharedMovement[COLUMNS.USER_DESCRIPTION] = `${originalUserDescription} (split part)`;
     sharedMovement[COLUMNS.DIRECTION] = DIRECTIONS.NEUTRAL;
     sharedMovement[COLUMNS.TYPE] = MOVEMENT_TYPES.DEBIT;
     sharedMovement[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
@@ -451,7 +450,7 @@ class Database {
     // 4. Modify the original movement row
     const sheetRowIndex = originalMovementIndex + 2; // 1-based index for sheet
     this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(remainingAmount);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(splitInfo.clean_description || originalMovement[COLUMNS.USER_DESCRIPTION]);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(`${originalMovement[COLUMNS.USER_DESCRIPTION]} (own part)`);
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(null); // Un-categorize
     this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment
     this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(`Split into #${nextId}`);
@@ -465,7 +464,7 @@ class Database {
     const newMovement = [...originalMovement];
     newMovement[COLUMNS.ID] = nextId;
     newMovement[COLUMNS.AMOUNT] = splitAmount;
-    newMovement[COLUMNS.USER_DESCRIPTION] = splitInfo.split_description;
+    newMovement[COLUMNS.USER_DESCRIPTION] = `${splitInfo.split_description} (split part)`;
     newMovement[COLUMNS.CATEGORY] = null; // Uncategorized
     newMovement[COLUMNS.COMMENT] = ''; // Clear comment
     newMovement[COLUMNS.AI_COMMENT] = `Split from #${originalMovementId}`;
