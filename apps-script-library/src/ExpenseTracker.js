@@ -204,6 +204,8 @@ class ExpenseTracker {
   /**
    * Applies autofill rules from the "Rules" sheet to new movements.
    * It matches movements by source_description and sets the user_description and comment.
+   * Rule patterns support regex: wrap the pattern in /.../ or /.../flags (e.g. /costa.+/i).
+   * Plain strings without slashes are matched exactly (case-sensitive).
    */
   async applyAutofillRules() {
     try {
@@ -225,24 +227,36 @@ class ExpenseTracker {
 
       Logger.log(`Found ${rules.length} rule(s) and ${movementsToProcess.length} movement(s) to process.`);
 
-      // 3. Create a map for efficient rule lookup (exact match on source_description)
-      const ruleMap = new Map();
-      for (const rule of rules) {
-        if (rule.sourceDescription) {
-          ruleMap.set(rule.sourceDescription.trim(), rule);
+      // 3. Pre-compile regex rules once
+      const compiledRules = rules.map(rule => {
+        const regexMatch = rule.sourceDescription.match(/^\/(.+)\/([gimsuy]*)$/);
+        if (regexMatch) {
+          try {
+            return { ...rule, regex: new RegExp(regexMatch[1], regexMatch[2]) };
+          } catch (e) {
+            Logger.log(`Invalid regex in rule "${rule.sourceDescription}": ${e.message}`);
+            return null;
+          }
         }
-      }
+        return { ...rule, regex: null };
+      }).filter(Boolean);
 
       let appliedCount = 0;
 
-      // 4. Iterate through movements and apply matching rules
+      // 4. Iterate through movements and apply the first matching rule
       for (const movement of movementsToProcess) {
         const sourceDescription = movement[COLUMNS.SOURCE_DESCRIPTION];
-        if (sourceDescription && ruleMap.has(sourceDescription.trim())) {
-          const rule = ruleMap.get(sourceDescription.trim());
-          const movementId = movement[COLUMNS.ID];
-          
-          this.database.updateMovementWithRule(movementId, rule.userDescription, rule.comment);
+        if (!sourceDescription) continue;
+
+        const matchedRule = compiledRules.find(rule => {
+          if (rule.regex) {
+            return rule.regex.test(sourceDescription);
+          }
+          return sourceDescription.trim() === rule.sourceDescription.trim();
+        });
+
+        if (matchedRule) {
+          this.database.updateMovementWithRule(movement[COLUMNS.ID], matchedRule.userDescription, matchedRule.comment);
           appliedCount++;
         }
       }
