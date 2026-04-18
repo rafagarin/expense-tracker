@@ -280,13 +280,13 @@ FIELD-SPECIFIC INSTRUCTIONS:
     -   Set all "split_*" fields to null.
 
 -   **If a DEBIT split is needed ("split_type": "DEBIT")**:
-    -   "category": The category for YOUR personal portion of the expense.
+    -   "category": The category for YOUR personal portion, or null if your portion is 0.
     -   "is_neutral": false.
     -   "needs_split": true.
     -   "split_type": "DEBIT".
-    -   "split_amount": The amount of YOUR personal portion.
+    -   "split_amount": The amount of YOUR personal portion. Use 0 if you paid entirely for others and owe nothing yourself.
     -   "split_description": A plain label for the part OTHERS owe you (e.g., "John's part of dinner").
-    -   "split_category": Same as "category".
+    -   "split_category": Same as "category", or null if "split_amount" is 0.
 
 -   **If an EXPENSE split is needed ("split_type": "EXPENSE")**:
     -   "category": null. The items will be categorized later by the user.
@@ -303,10 +303,15 @@ User Description: "Lunch at cafe"
 Amount: CLP 10000
 Output: { "category": "restaurants", "is_earning": false, "is_neutral": false, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null }
 
-Example 2 (DEBIT Split):
+Example 2a (DEBIT Split with personal portion):
 User Description: "Dinner with friends, my part is 25"
 Amount: GBP 75
 Output: { "category": "restaurants", "is_earning": false, "is_neutral": false, "needs_split": true, "split_type": "DEBIT", "split_amount": 25, "split_description": "Dinner with friends (shared part)", "split_category": "restaurants" }
+
+Example 2b (DEBIT Split, full amount owed by others):
+User Description: "Paid for the whole team lunch, they'll pay me back"
+Amount: GBP 60
+Output: { "category": null, "is_earning": false, "is_neutral": false, "needs_split": true, "split_type": "DEBIT", "split_amount": 0, "split_description": "Team lunch", "split_category": null }
 
 Example 3 (EXPENSE Split):
 User Description: "Supermarket. comment: split 15 for household items"
@@ -365,7 +370,8 @@ Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_spli
       // Validate required fields
       const isExpenseSplit = parsedData.needs_split && parsedData.split_type === 'EXPENSE';
       const isEarningOrNeutral = parsedData.is_earning === true || parsedData.is_neutral === true;
-      if (!isExpenseSplit && !isEarningOrNeutral && !parsedData.category) {
+      const isFullDebit = parsedData.needs_split && parsedData.split_type === 'DEBIT' && parsedData.split_amount === 0;
+      if (!isExpenseSplit && !isEarningOrNeutral && !isFullDebit && !parsedData.category) {
         Logger.log('Missing required category field in analysis response');
         Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
         return null;
@@ -383,8 +389,9 @@ Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_spli
           return null;
         }
 
-        // For DEBIT splits, a split_category is required
-        if (parsedData.split_type === 'DEBIT') {
+        // For DEBIT splits with a personal portion, a split_category is required.
+        // When split_amount is 0 the user has no personal portion, so split_category is null.
+        if (parsedData.split_type === 'DEBIT' && parsedData.split_amount !== 0) {
           if (!parsedData.split_category || !validCategories.includes(parsedData.split_category)) {
             Logger.log(`Invalid or missing split_category for DEBIT split: ${parsedData.split_category}`);
             return null;
@@ -398,7 +405,7 @@ Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_spli
         is_neutral: parsedData.is_neutral === true,
         needs_split: parsedData.needs_split === true,
         split_type: parsedData.split_type || null,
-        split_amount: parsedData.split_amount || null,
+        split_amount: parsedData.split_amount ?? null,
         split_description: parsedData.split_description || null,
         split_category: parsedData.split_category || null,
       };

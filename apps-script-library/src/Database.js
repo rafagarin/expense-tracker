@@ -309,6 +309,29 @@ class Database {
   }
 
   /**
+   * Convert an existing movement to a full DEBIT in place (no personal portion).
+   * Used when the user paid entirely for others and expects full repayment.
+   * @param {number} movementId - The ID of the movement to convert
+   */
+  convertMovementToDebit(movementId) {
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found in database`);
+      return;
+    }
+
+    const sheetRowIndex = movementRowIndex + 2;
+    this.sheet.getRange(sheetRowIndex, COLUMNS.DIRECTION + 1).setValue(DIRECTIONS.NEUTRAL);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.TYPE + 1).setValue(MOVEMENT_TYPES.DEBIT);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(null);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(STATUS.PENDING_DIRECT_SETTLEMENT);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue('');
+    Logger.log(`Converted movement ID ${movementId} to full DEBIT (no personal portion)`);
+  }
+
+  /**
    * Split a movement by modifying the original row and creating a new debit row
    * @param {number} originalMovementId - The ID of the original movement to split
    * @param {Object} splitInfo - Split information from AI analysis

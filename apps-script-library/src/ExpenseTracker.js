@@ -161,20 +161,28 @@ class ExpenseTracker {
 
               // 5. If the movement needs to be split into a personal expense and a debit
               if (analysisResult.needs_split) {
-                const splitInfo = {
-                  split_amount: analysisResult.split_amount,
-                  split_category: analysisResult.split_category,
-                  split_description: analysisResult.split_description,
-                };
-
-                const newDebitMovementId = this.database.splitMovement(movementId, splitInfo);
-                
-                if (newDebitMovementId) {
+                // When split_amount is 0 the user has no personal portion — convert
+                // the whole movement to a DEBIT in place instead of splitting.
+                if (analysisResult.split_amount === 0) {
+                  this.database.convertMovementToDebit(movementId);
                   splitCount++;
-                  Logger.log(`Split movement ID ${movementId}: modified original to personal portion, created debit movement ${newDebitMovementId} for shared portion`);
+                  Logger.log(`Converted movement ID ${movementId} to full DEBIT (no personal portion)`);
                 } else {
-                  Logger.log(`Failed to split movement ID ${movementId}`);
-                  errorCount++;
+                  const splitInfo = {
+                    split_amount: analysisResult.split_amount,
+                    split_category: analysisResult.split_category,
+                    split_description: analysisResult.split_description,
+                  };
+
+                  const newDebitMovementId = this.database.splitMovement(movementId, splitInfo);
+
+                  if (newDebitMovementId) {
+                    splitCount++;
+                    Logger.log(`Split movement ID ${movementId}: modified original to personal portion, created debit movement ${newDebitMovementId} for shared portion`);
+                  } else {
+                    Logger.log(`Failed to split movement ID ${movementId}`);
+                    errorCount++;
+                  }
                 }
               }
             }
