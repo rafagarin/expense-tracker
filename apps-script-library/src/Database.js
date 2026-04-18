@@ -622,7 +622,10 @@ class Database {
       Logger.log(`Failed to fix currency conversion for movement ID ${movementId}`);
       return false;
     }
-    
+
+    // +1 to convert from 0-based array index to 1-based sheet row, +1 to skip the header row.
+    const sheetRowIndex = movementRowIndex + 2;
+
     // Update the movement with the fixed currency values (formulas or calculated values)
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(currencyValues.clpValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(currencyValues.usdValue);
