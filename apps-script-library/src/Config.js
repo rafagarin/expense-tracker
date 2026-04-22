@@ -69,7 +69,8 @@ const STATUS = {
 // Source values
 const SOURCES = {
   GMAIL: 'gmail',
-  MONZO: 'monzo'
+  MONZO: 'monzo',
+  MANUAL: 'manual'
 };
 
 

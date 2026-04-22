@@ -182,6 +182,136 @@ If you cannot extract any of these fields, set them to null. Only return valid J
   }
 
   /**
+   * Map AI transaction type (including earning/neutral) to our movement type constants
+   * Extends mapTransactionTypeToMovementType with manual-entry-only types.
+   * @param {string} transactionType - The transaction type from AI
+   * @returns {string} The corresponding movement type constant
+   */
+  mapManualTransactionType(transactionType) {
+    if (!transactionType) return MOVEMENT_TYPES.EXPENSE;
+    const extended = {
+      'expense': MOVEMENT_TYPES.EXPENSE,
+      'cash': MOVEMENT_TYPES.CASH,
+      'debit': MOVEMENT_TYPES.DEBIT,
+      'credit': MOVEMENT_TYPES.CREDIT,
+      'debit repayment': MOVEMENT_TYPES.DEBIT_REPAYMENT,
+      'earning': MOVEMENT_TYPES.EARNING,
+      'neutral': MOVEMENT_TYPES.NEUTRAL,
+    };
+    return extended[transactionType.toLowerCase()] || MOVEMENT_TYPES.EXPENSE;
+  }
+
+  /**
+   * Parse a free-form manual entry description using AI and return a transaction object.
+   * @param {string} description - The user-written description (e.g. "paid £50 cash at Tesco")
+   * @returns {Object|null} Parsed transaction or null on failure
+   */
+  async parseManualEntry(description) {
+    try {
+      const prompt = this.createManualEntryPrompt(description);
+      const response = await this.callGoogleAIStudioAPI(prompt);
+      if (response && response.candidates && response.candidates.length > 0) {
+        return this.parseManualEntryResponse(response, description);
+      }
+      return null;
+    } catch (error) {
+      Logger.log(`Error parsing manual entry: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Build the AI prompt for parsing a free-form manual entry.
+   * @param {string} description - The raw user input
+   * @returns {string} Prompt string
+   */
+  createManualEntryPrompt(description) {
+    return `You are an expert at parsing informal personal finance descriptions for expense tracking. Extract transaction information from the following description and return it as JSON.
+
+Description: "${description}"
+
+TRANSACTION TYPES — choose exactly one:
+- "expense"          Regular purchase (food, shopping, bills, etc.)
+- "cash"             Cash withdrawal or cash payment
+- "debit"            Money I paid on behalf of others; I expect to be paid back
+- "credit"           Money someone else paid for me; I owe them
+- "debit repayment"  Someone paying me back money they owed me
+- "earning"          Income I received (salary, freelance, gift money, etc.)
+- "neutral"          Transfer between my own accounts; no real spending or income
+
+CURRENCY SYMBOLS: £ → GBP, $ → USD, no symbol / CLP → CLP
+
+FIELDS to extract:
+- amount: number (always positive)
+- currency: "GBP", "USD", or "CLP"
+- transaction_type: one of the types above
+
+Return ONLY valid JSON, no extra text:
+
+{
+  "amount": number | null,
+  "currency": "GBP" | "USD" | "CLP" | null,
+  "transaction_type": "string" | null
+}
+
+Examples:
+
+Input: "paid £42.50 at Costa Coffee"
+Output: { "amount": 42.50, "currency": "GBP", "transaction_type": "expense" }
+
+Input: "got £50 cash from ATM"
+Output: { "amount": 50, "currency": "GBP", "transaction_type": "cash" }
+
+Input: "John paid me back $30 for dinner"
+Output: { "amount": 30, "currency": "USD", "transaction_type": "debit repayment" }
+
+Input: "salary 2500 GBP"
+Output: { "amount": 2500, "currency": "GBP", "transaction_type": "earning" }
+
+Input: "transferred £200 to my savings account"
+Output: { "amount": 200, "currency": "GBP", "transaction_type": "neutral" }`;
+  }
+
+  /**
+   * Parse the AI response for a manual entry into a transaction object.
+   * @param {Object} apiResponse - Full API response from Google AI Studio
+   * @param {string} originalDescription - The original user input (used as fallback source_description)
+   * @returns {Object|null} Transaction object or null on failure
+   */
+  parseManualEntryResponse(apiResponse, originalDescription) {
+    try {
+      const textContent = apiResponse.candidates[0].content.parts[0].text;
+      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        Logger.log('No JSON found in manual entry response');
+        return null;
+      }
+      let parsedData;
+      try {
+        parsedData = JSON.parse(jsonMatch[0]);
+      } catch (e) {
+        Logger.log(`Failed to parse manual entry JSON: ${e.message}`);
+        return null;
+      }
+
+      if (!parsedData.amount || !parsedData.currency) {
+        Logger.log(`Manual entry missing required fields: ${JSON.stringify(parsedData)}`);
+        return null;
+      }
+
+      return {
+        description: originalDescription,
+        amount: parseFloat(parsedData.amount),
+        currency: parsedData.currency.toUpperCase(),
+        transactionType: this.mapManualTransactionType(parsedData.transaction_type),
+      };
+    } catch (error) {
+      Logger.log(`Error parsing manual entry response: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Analyze user description and determine the appropriate category and split information
    * @param {string} userDescription - The user-provided description
    * @param {Object} movementData - Additional movement context (amount, source_description, etc.)

@@ -460,8 +460,10 @@ class ExpenseTracker {
       case MOVEMENT_TYPES.DEBIT:
         return DIRECTIONS.OUTFLOW;
       case MOVEMENT_TYPES.CREDIT:
+      case MOVEMENT_TYPES.EARNING:
         return DIRECTIONS.INFLOW;
       case MOVEMENT_TYPES.DEBIT_REPAYMENT:
+      case MOVEMENT_TYPES.NEUTRAL:
         return DIRECTIONS.NEUTRAL;
       default:
         return DIRECTIONS.OUTFLOW;
@@ -482,6 +484,68 @@ class ExpenseTracker {
         return null;
       default:
         return null;
+    }
+  }
+
+  /**
+   * Find movements the user entered manually (user_description present, amount absent)
+   * and ask AI to infer all missing fields (amount, currency, type, source_description).
+   * Category is intentionally left blank so processUncategorizedMovements picks it up.
+   */
+  async processDescriptionOnlyMovements() {
+    try {
+      Logger.log('Starting description-only movement processing...');
+
+      const movements = this.database.getMovementsNeedingFieldInference();
+
+      if (movements.length === 0) {
+        Logger.log('No description-only movements found.');
+        return;
+      }
+
+      Logger.log(`Found ${movements.length} description-only movement(s).`);
+
+      for (const movement of movements) {
+        const movementId = movement[COLUMNS.ID];
+        const userDescription = movement[COLUMNS.USER_DESCRIPTION];
+
+        try {
+          const transaction = await this.googleAIStudioService.parseManualEntry(userDescription);
+
+          if (!transaction) {
+            Logger.log(`Could not infer fields for movement ${movementId}: "${userDescription}"`);
+            continue;
+          }
+
+          const direction = this.getDirectionForTransactionType(transaction.transactionType);
+          const status = this.getStatusForTransactionType(transaction.transactionType);
+          const currencyValues = this.currencyConversionService.getAllCurrencyValues(
+            transaction.amount,
+            transaction.currency,
+            3
+          );
+
+          this.database.updateMovementWithInferredFields(movementId, {
+            timestamp: new Date().toISOString(),
+            direction,
+            type: transaction.transactionType,
+            amount: transaction.amount,
+            currency: transaction.currency,
+            sourceDescription: userDescription,
+            status,
+            clpValue: currencyValues.clpValue,
+            usdValue: currencyValues.usdValue,
+            gbpValue: currencyValues.gbpValue,
+          });
+
+        } catch (error) {
+          Logger.log(`Error processing movement ${movementId}: ${error.message}`);
+        }
+      }
+
+    } catch (error) {
+      Logger.log(`Error in processDescriptionOnlyMovements: ${error.message}`);
+      throw error;
     }
   }
 

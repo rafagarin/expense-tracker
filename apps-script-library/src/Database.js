@@ -175,6 +175,65 @@ class Database {
   }
 
   /**
+   * Get movements that have a user_description but no amount — i.e. rows the user
+   * typed manually in the sheet and whose remaining fields still need to be inferred.
+   * @returns {Array} Array of movements needing field inference
+   */
+  getMovementsNeedingFieldInference() {
+    const allMovements = this.getAllMovements();
+    return allMovements.filter(movement => {
+      const hasUserDescription = movement[COLUMNS.USER_DESCRIPTION] && String(movement[COLUMNS.USER_DESCRIPTION]).trim() !== '';
+      const hasNoAmount = !movement[COLUMNS.AMOUNT] && movement[COLUMNS.AMOUNT] !== 0;
+      return hasUserDescription && hasNoAmount;
+    });
+  }
+
+  /**
+   * Write AI-inferred fields back to an existing movement row.
+   * Only updates fields that were missing; leaves user_description and category untouched.
+   * @param {number} movementId - The ID of the movement to update
+   * @param {Object} data - Inferred fields: timestamp, direction, type, amount, currency,
+   *                        sourceDescription, status, clpValue, usdValue, gbpValue
+   */
+  updateMovementWithInferredFields(movementId, data) {
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(m => m[COLUMNS.ID] === movementId);
+
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement ${movementId} not found for field inference update`);
+      return;
+    }
+
+    // +1 to convert from 0-based array index to 1-based sheet row, +1 to skip the header row.
+    const sheetRowIndex = movementRowIndex + 2;
+    const existing = allMovements[movementRowIndex];
+
+    // Only set timestamp if the row doesn't already have one.
+    if (!existing[COLUMNS.TIMESTAMP]) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.TIMESTAMP + 1).setValue(new Date(data.timestamp));
+    }
+
+    this.sheet.getRange(sheetRowIndex, COLUMNS.DIRECTION + 1).setValue(data.direction);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.TYPE + 1).setValue(data.type);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(data.amount);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CURRENCY + 1).setValue(data.currency);
+
+    this.sheet.getRange(sheetRowIndex, COLUMNS.SOURCE_DESCRIPTION + 1).setValue(data.sourceDescription);
+
+    if (data.status) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.STATUS + 1).setValue(data.status);
+    }
+
+    this.sheet.getRange(sheetRowIndex, COLUMNS.SOURCE + 1).setValue(SOURCES.MANUAL);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(data.clpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(data.usdValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(data.gbpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.YEAR_MONTH + 1).setFormula(`=TEXT($A${sheetRowIndex}, "YYYY-MM")`);
+
+    Logger.log(`Updated inferred fields for movement ${movementId}`);
+  }
+
+  /**
    * Get movements that have a source_description but no user_description.
    * These are candidates for autofill rules.
    * @returns {Array} Array of movements.

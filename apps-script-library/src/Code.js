@@ -73,6 +73,15 @@ async function fixCurrencyConversions() {
 }
 
 /**
+ * Infer missing fields (amount, currency, type, etc.) for movements that have a
+ * user_description but no amount. These are rows the user entered manually in the sheet.
+ */
+async function processDescriptionOnlyMovements() {
+  const expenseTracker = new ExpenseTracker();
+  await expenseTracker.processDescriptionOnlyMovements();
+}
+
+/**
  * Main function that performs all expense tracking actions with proper conditions
  * This is the primary entry point that orchestrates the entire workflow
  * @param {Object} clientProperties - Optional client properties object
@@ -85,21 +94,25 @@ async function main(clientProperties = null) {
     // Step 1: Process bank emails (with idempotency - only new emails)
     Logger.log('=== Step 1: Processing bank emails ===');
     await expenseTracker.processBankEmails();
-    
+
     // Step 2: Process Monzo transactions (with idempotency - only new transactions)
     Logger.log('=== Step 2: Processing Monzo transactions ===');
     await expenseTracker.processMonzoTransactions();
-    
-    // Step 3: Apply autofill rules to new movements
-    Logger.log('=== Step 3: Applying autofill rules ===');
+
+    // Step 3: Fill in missing fields for manually-entered rows (user_description only)
+    Logger.log('=== Step 3: Processing description-only movements ===');
+    await expenseTracker.processDescriptionOnlyMovements();
+
+    // Step 4: Apply autofill rules to new movements
+    Logger.log('=== Step 4: Applying autofill rules ===');
     await expenseTracker.applyAutofillRules();
 
-    // Step 4: Categorize movements with AI (only movements with user_description)
-    Logger.log('=== Step 4: Analyzing movements with AI ===');
+    // Step 5: Categorize movements with AI (only movements with user_description)
+    Logger.log('=== Step 5: Analyzing movements with AI ===');
     await expenseTracker.processUncategorizedMovements();
 
-    // Step 5: Fix failed currency conversions
-    Logger.log('=== Step 5: Fixing failed currency conversions ===');
+    // Step 6: Fix failed currency conversions
+    Logger.log('=== Step 6: Fixing failed currency conversions ===');
     await expenseTracker.fixFailedCurrencyConversions();
     
     Logger.log('Main expense tracking workflow completed successfully.');
