@@ -95,7 +95,7 @@ class MonzoService {
         }
       }
 
-      let url = `/transactions?account_id=${this.accountId}`;
+      let url = `/transactions?expand[]=merchant&account_id=${this.accountId}`;
       
       // Add since parameter if provided
       if (since) {
