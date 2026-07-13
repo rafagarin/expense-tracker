@@ -6,8 +6,8 @@
 const SHEET_NAMES = {
   MOVEMENTS: 'Movements',
   RULES: 'Rules',
-  SETTINGS: 'Settings',
-  VALUES: 'Values'
+  GENERAL_SETTINGS: 'General Settings',
+  VALUES: 'Values',
 };
 
 // Gmail search configuration

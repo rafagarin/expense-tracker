@@ -233,7 +233,6 @@ class CurrencyConversionService {
     try {
       // Create a temporary sheet to calculate the Google Finance values
       const tempSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_NAMES.TEMP_CURRENCY_CALC);
-      const tempSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('TempCurrencyCalc');
       
       // Set up the calculation
       const amountCell = tempSheet.getRange('A1');
