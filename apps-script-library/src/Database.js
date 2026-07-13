@@ -14,10 +14,10 @@ class Database {
    */
   initializeSheet() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    this.sheet = ss.getSheetByName(SPREADSHEET_TAB_NAME);
+    this.sheet = ss.getSheetByName(SHEET_NAMES.MOVEMENTS);
     
     if (!this.sheet) {
-      throw new Error(`Sheet named "${SPREADSHEET_TAB_NAME}" not found.`);
+      throw new Error(`Sheet named "${SHEET_NAMES.MOVEMENTS}" not found.`);
     }
   }
 
@@ -252,9 +252,9 @@ class Database {
    * @returns {Array<Object>} Array of rule objects.
    */
   getAutofillRules() {
-    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rules');
+    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.RULES);
     if (!rulesSheet) {
-      Logger.log('Warning: "Rules" sheet not found. Skipping rule processing.');
+      Logger.log(`Warning: "${SHEET_NAMES.RULES}" sheet not found. Skipping rule processing.`);
       return [];
     }
 

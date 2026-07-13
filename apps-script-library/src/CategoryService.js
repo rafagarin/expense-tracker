@@ -15,10 +15,10 @@ class CategoryService {
    */
   initializeSettingsSheet() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    this.settingsSheet = ss.getSheetByName('Settings');
+    this.settingsSheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
     
     if (!this.settingsSheet) {
-      throw new Error('Settings sheet not found. Please create a Settings sheet with categories.');
+      throw new Error(`"${SHEET_NAMES.SETTINGS}" sheet not found. Please create a Settings sheet with categories.`);
     }
     
     this.loadCategories();
@@ -35,7 +35,7 @@ class CategoryService {
       const lastRow = this.settingsSheet.getLastRow();
       
       if (lastRow < 3) {
-        throw new Error('No categories found in Settings sheet. Please add categories starting from row 3.');
+        throw new Error(`No categories found in "${SHEET_NAMES.SETTINGS}" sheet. Please add categories starting from row 3.`);
       }
 
       // Get category data from A3 to the last row
@@ -59,10 +59,10 @@ class CategoryService {
       });
 
       if (Object.keys(this.categories).length === 0) {
-        throw new Error('No valid categories found in Settings sheet.');
+        throw new Error(`No valid categories found in "${SHEET_NAMES.SETTINGS}" sheet.`);
       }
 
-      Logger.log(`Loaded ${Object.keys(this.categories).length} categories from Settings sheet:`, Object.keys(this.categories));
+      Logger.log(`Loaded ${Object.keys(this.categories).length} categories from "${SHEET_NAMES.SETTINGS}" sheet:`, Object.keys(this.categories));
       
     } catch (error) {
       Logger.log(`Error loading categories: ${error.message}`);
@@ -134,7 +134,7 @@ class CategoryService {
    */
   refreshCategories() {
     this.loadCategories();
-    Logger.log('Categories refreshed from Settings sheet');
+    Logger.log(`Categories refreshed from "${SHEET_NAMES.SETTINGS}" sheet`);
   }
 
   /**

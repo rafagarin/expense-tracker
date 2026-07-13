@@ -3,7 +3,12 @@
  */
 
 // Spreadsheet configuration
-const SPREADSHEET_TAB_NAME = 'Movements';
+const SHEET_NAMES = {
+  MOVEMENTS: 'Movements',
+  RULES: 'Rules',
+  SETTINGS: 'Settings',
+  VALUES: 'Values'
+};
 
 // Gmail search configuration
 const GMAIL_QUERY = '(label:expenses newer_than:8d) OR label:expenses/manual ';

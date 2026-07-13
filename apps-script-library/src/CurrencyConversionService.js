@@ -15,10 +15,10 @@ class CurrencyConversionService {
    */
   initializeSettingsSheet() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    this.settingsSheet = ss.getSheetByName('Values');
+    this.settingsSheet = ss.getSheetByName(SHEET_NAMES.VALUES);
     
     if (!this.settingsSheet) {
-      throw new Error('Values sheet not found. Please create a Values sheet with conversion rates.');
+      throw new Error(`"${SHEET_NAMES.VALUES}" sheet not found. Please create a Values sheet with conversion rates.`);
     }
     
     this.loadConversionRates();
@@ -38,7 +38,7 @@ class CurrencyConversionService {
       const gbpToClp = this.settingsSheet.getRange('C5').getValue();
 
       if (!usdToClp || !gbpToUsd || !gbpToClp) {
-        throw new Error('Conversion rates not found in Values sheet. Please set values in C3, C4, and C5.');
+        throw new Error(`Conversion rates not found in "${SHEET_NAMES.VALUES}" sheet. Please set values in C3, C4, and C5.`);
       }
 
       this.conversionRates = {
@@ -232,6 +232,7 @@ class CurrencyConversionService {
   getAllCurrencyValuesWithGoogleFinanceCalculated(amount, currency) {
     try {
       // Create a temporary sheet to calculate the Google Finance values
+      const tempSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_NAMES.TEMP_CURRENCY_CALC);
       const tempSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('TempCurrencyCalc');
       
       // Set up the calculation
