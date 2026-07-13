@@ -222,7 +222,7 @@ class ExpenseTracker {
       // 1. Get rules from the "Rules" sheet
       const rules = this.database.getAutofillRules();
       if (rules.length === 0) {
-        Logger.log('No autofill rules found or "Rules" sheet is empty.');
+        Logger.log(`No autofill rules found or "${SHEET_NAMES.RULES_SETTINGS}" sheet is empty.`);
         return;
       }
 

@@ -5,7 +5,7 @@
 // Spreadsheet configuration
 const SHEET_NAMES = {
   MOVEMENTS: 'Movements',
-  RULES: 'Rules',
+  RULES_SETTINGS: 'Rules Settings',
   GENERAL_SETTINGS: 'General Settings',
   VALUES: 'Values',
 };

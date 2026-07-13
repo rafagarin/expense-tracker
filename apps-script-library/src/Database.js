@@ -252,9 +252,9 @@ class Database {
    * @returns {Array<Object>} Array of rule objects.
    */
   getAutofillRules() {
-    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.RULES);
+    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.RULES_SETTINGS);
     if (!rulesSheet) {
-      Logger.log(`Warning: "${SHEET_NAMES.RULES}" sheet not found. Skipping rule processing.`);
+      Logger.log(`Warning: "${SHEET_NAMES.RULES_SETTINGS}" sheet not found. Skipping rule processing.`);
       return [];
     }
 
