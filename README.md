@@ -84,6 +84,7 @@ To set up the project for development:
 - Clone the code
 - Add values for `GOOGLE_AI_STUDIO_API_KEY`, `MONZO_ACCESS_TOKEN`, `MONZO_REFRESH_TOKEN`, `MONZO_CLIENT_ID`, `MONZO_CLIENT_SECRET`
 - Use [clasp](https://github.com/google/clasp) to push updates to the code
+- Run tests with `npm run test`
 
 ### Pending
 

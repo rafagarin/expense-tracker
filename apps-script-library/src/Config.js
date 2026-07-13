@@ -7,6 +7,7 @@ const SHEET_NAMES = {
   MOVEMENTS: 'Movements',
   RULES_SETTINGS: 'Rules Settings',
   GENERAL_SETTINGS: 'General Settings',
+  REMINDER_SETTINGS: 'Reminder Settings',
   VALUES: 'Values',
 };
 
@@ -54,6 +55,7 @@ const MOVEMENT_TYPES = {
   DEBIT_REPAYMENT: 'Debit Repayment',
   EARNING: 'Earning',
   NEUTRAL: 'Neutral',
+  REMINDER: 'Reminder',
 };
 
 // Movement directions

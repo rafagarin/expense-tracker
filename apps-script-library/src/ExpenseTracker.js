@@ -576,4 +576,44 @@ class ExpenseTracker {
       throw error;
     }
   }
+
+  /**
+   * Processes reminders from the "Reminder Settings" sheet.
+   * If today is the configured day of the month for a reminder, it adds a new
+   * reminder movement to the sheet, ensuring it's only added once per month.
+   */
+  async processReminders() {
+    try {
+      Logger.log('Starting reminder processing...');
+      const reminderService = new ReminderService();
+      const allReminders = reminderService.getReminders();
+
+      if (allReminders.length === 0) {
+        Logger.log('No reminders configured.');
+        return;
+      }
+
+      const today = new Date();
+      const dayOfMonth = today.getDate();
+      const yearMonth = Utilities.formatDate(today, Session.getScriptTimeZone(), "yyyy-MM");
+
+      const remindersForToday = allReminders.filter(r => r.dayOfMonth === dayOfMonth);
+
+      if (remindersForToday.length === 0) {
+        Logger.log('No reminders scheduled for today.');
+        return;
+      }
+
+      for (const reminder of remindersForToday) {
+        if (!this.database.reminderExists(reminder.description, yearMonth)) {
+          this.database.addReminderMovement(reminder.description);
+        } else {
+          Logger.log(`Reminder "${reminder.description}" for ${yearMonth} already exists. Skipping.`);
+        }
+      }
+    } catch (error) {
+      Logger.log(`Error processing reminders: ${error.message}`);
+      throw error;
+    }
+  }
 }

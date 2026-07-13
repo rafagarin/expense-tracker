@@ -718,5 +718,66 @@ class Database {
     return { successCount, failureCount };
   }
 
+  /**
+   * Checks if a reminder for the given description and month/year already exists.
+   * @param {string} description - The reminder description.
+   * @param {string} yearMonth - The year and month in "YYYY-MM" format.
+   * @returns {boolean} True if the reminder already exists, false otherwise.
+   */
+  reminderExists(description, yearMonth) {
+    const allMovements = this.getAllMovements();
+    return allMovements.some(movement => {
+      const movementYearMonth = Utilities.formatDate(new Date(movement[COLUMNS.TIMESTAMP]), Session.getScriptTimeZone(), "yyyy-MM");
+      return (
+        movement[COLUMNS.TYPE] === MOVEMENT_TYPES.REMINDER &&
+        movement[COLUMNS.USER_DESCRIPTION] === description &&
+        movementYearMonth === yearMonth
+      );
+    });
+  }
+
+  /**
+   * Adds a new reminder movement to the database.
+   * @param {string} description - The description of the reminder.
+   */
+  addReminderMovement(description) {
+    const nextId = this.getNextId();
+    const now = new Date();
+
+    const reminderRow = [];
+    reminderRow[COLUMNS.TIMESTAMP] = now;
+    reminderRow[COLUMNS.DIRECTION] = DIRECTIONS.NEUTRAL;
+    reminderRow[COLUMNS.TYPE] = MOVEMENT_TYPES.REMINDER;
+    reminderRow[COLUMNS.AMOUNT] = null;
+    reminderRow[COLUMNS.CURRENCY] = null;
+    reminderRow[COLUMNS.SOURCE_DESCRIPTION] = 'Automatic Reminder';
+    reminderRow[COLUMNS.USER_DESCRIPTION] = description;
+    reminderRow[COLUMNS.COMMENT] = null;
+    reminderRow[COLUMNS.AI_COMMENT] = null;
+    reminderRow[COLUMNS.CATEGORY] = 'None';
+    reminderRow[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
+    reminderRow[COLUMNS.SETTLED_MOVEMENT_ID] = null;
+    reminderRow[COLUMNS.CLP_VALUE] = null;
+    reminderRow[COLUMNS.USD_VALUE] = null;
+    reminderRow[COLUMNS.GBP_VALUE] = null;
+    reminderRow[COLUMNS.ORIGINAL_AMOUNT] = null;
+    reminderRow[COLUMNS.ID] = nextId;
+    reminderRow[COLUMNS.SOURCE] = SOURCES.MANUAL;
+    reminderRow[COLUMNS.SOURCE_ID] = `reminder-${nextId}`;
+    reminderRow[COLUMNS.ACCOUNTING_SYSTEM_ID] = null;
+    // YEAR_MONTH formula is set by addMovement
+
+    // The row needs to have values for all columns up to the max index.
+    // Fill any potentially empty spots with null.
+    const maxColIndex = Math.max(...Object.values(COLUMNS));
+    for (let i = 0; i <= maxColIndex; i++) {
+      if (reminderRow[i] === undefined) {
+        reminderRow[i] = null;
+      }
+    }
+
+    this.addMovement(reminderRow);
+    Logger.log(`Added reminder movement: "${description}"`);
+  }
 
 }

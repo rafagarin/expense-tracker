@@ -35,12 +35,24 @@ globalThis.PropertiesService = {
   }),
 };
 
-globalThis.Logger = { log: () => {} };
-globalThis.Utilities = { sleep: () => {} };
+globalThis.Logger = { log: () => {} }; // Suppress log output in tests
+
+globalThis.Utilities = {
+  sleep: () => {},
+  // A basic implementation of formatDate for testing purposes.
+  formatDate: (date, timeZone, format) => {
+    if (format === 'yyyy-MM') {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+    return date.toISOString();
+  },
+};
+
 globalThis.UrlFetchApp = {
   fetch: () => ({ getResponseCode: () => 200, getContentText: () => '{}' }),
 };
 globalThis.GmailApp = { search: () => [] };
+globalThis.Session = { getScriptTimeZone: () => 'UTC' };
 
 // ---------------------------------------------------------------------------
 // Source file loader
@@ -71,6 +83,7 @@ const sourceFiles = [
   'Config.js',
   'CategoryService.js',
   'CurrencyConversionService.js',
+  'ReminderService.js',
   'Database.js',
   'GmailService.js',
   'MonzoService.js',

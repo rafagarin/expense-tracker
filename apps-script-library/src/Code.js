@@ -113,6 +113,13 @@ async function main(clientProperties = null) {
 
     // Step 6: Fix failed currency conversions
     Logger.log('=== Step 6: Fixing failed currency conversions ===');
+    
+    // Step 7: Process reminders
+    Logger.log('=== Step 6: Processing reminders ===');
+    await expenseTracker.processReminders();
+
+    // Step 8: Fix failed currency conversions
+    Logger.log('=== Step 7: Fixing failed currency conversions ===');
     await expenseTracker.fixFailedCurrencyConversions();
     
     Logger.log('Main expense tracking workflow completed successfully.');
