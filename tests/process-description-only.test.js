@@ -141,6 +141,21 @@ describe('processDescriptionOnlyMovements', () => {
     expect(data.status).toBe(STATUS.PENDING_DIRECT_SETTLEMENT);
   });
 
+  it('sets direction=Neutral and status=Pending Settlement for a debit', async () => {
+    tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
+      makeDescriptionOnlyMovement({ userDescription: 'lent John £30' }),
+    ]);
+    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(
+      makeTransaction({ transactionType: MOVEMENT_TYPES.DEBIT })
+    );
+
+    await tracker.processDescriptionOnlyMovements();
+
+    const [, data] = tracker.database.updateMovementWithInferredFields.mock.calls[0];
+    expect(data.direction).toBe(DIRECTIONS.NEUTRAL);
+    expect(data.status).toBe(STATUS.PENDING_DIRECT_SETTLEMENT);
+  });
+
   // --- error handling ---
 
   it('skips a movement when AI returns null and still processes the next one', async () => {

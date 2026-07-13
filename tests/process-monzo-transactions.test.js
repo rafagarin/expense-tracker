@@ -129,7 +129,7 @@ describe('processMonzoTransactions', () => {
     expect(row[COLUMNS.DIRECTION]).toBe(DIRECTIONS.INFLOW);
   });
 
-  it('converts a positive amount to Debit Repayment with direction=Inflow', async () => {
+  it('converts a positive amount to Debit Repayment with direction=Neutral', async () => {
     tracker.monzoService.getRecentTransactions.mockResolvedValue([
       makeMonzoTransaction({ id: 'tx_001', amount: 2000 }),
     ]);
@@ -139,7 +139,7 @@ describe('processMonzoTransactions', () => {
     const [batch] = tracker.database.addMovementsBatch.mock.calls[0];
     const row = batch[0].row;
     expect(row[COLUMNS.TYPE]).toBe(MOVEMENT_TYPES.DEBIT_REPAYMENT);
-    expect(row[COLUMNS.DIRECTION]).toBe(DIRECTIONS.INFLOW);
+    expect(row[COLUMNS.DIRECTION]).toBe(DIRECTIONS.NEUTRAL);
   });
 
   it('divides amount by 100 and makes it positive', async () => {

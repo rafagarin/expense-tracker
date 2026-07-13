@@ -457,12 +457,12 @@ class ExpenseTracker {
     switch (transactionType) {
       case MOVEMENT_TYPES.EXPENSE:
       case MOVEMENT_TYPES.CASH:
-      case MOVEMENT_TYPES.DEBIT:
         return DIRECTIONS.OUTFLOW;
       case MOVEMENT_TYPES.CREDIT:
       case MOVEMENT_TYPES.EARNING:
         return DIRECTIONS.INFLOW;
       case MOVEMENT_TYPES.DEBIT_REPAYMENT:
+      case MOVEMENT_TYPES.DEBIT:
       case MOVEMENT_TYPES.NEUTRAL:
         return DIRECTIONS.NEUTRAL;
       default:

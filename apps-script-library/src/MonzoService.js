@@ -165,8 +165,8 @@ class MonzoService {
         }
       } else {
         // Positive amount = income/refund
-        type = MOVEMENT_TYPES.DEBIT_REPAYMENT; // Treat as debit repayment
-        direction = DIRECTIONS.INFLOW;
+        type = MOVEMENT_TYPES.DEBIT_REPAYMENT;
+        direction = DIRECTIONS.NEUTRAL;
       }
 
       // Convert amount from minor units (pennies) to major units
