@@ -6,8 +6,8 @@ class ExpenseTracker {
   constructor(clientProperties = null) {
     this.clientProperties = clientProperties;
     this.database = new Database();
-    this.gmailService = new GmailService(clientProperties);
-    this.googleAIStudioService = new GoogleAIStudioService(clientProperties);
+    this.gmailService = new GmailService();
+    this.aiProviderService = new AIProviderService(clientProperties);
     this.monzoService = new MonzoService(clientProperties);
     this.currencyConversionService = new CurrencyConversionService();
   }
@@ -38,8 +38,8 @@ class ExpenseTracker {
         const gmailId = message.getId();
         const emailBody = message.getPlainBody();
         
-        // Parse email using Google AI Studio
-        const transaction = await this.googleAIStudioService.parseEmailWithGoogleAIStudio(emailBody, gmailId);
+        // Parse email using the AI Provider
+        const transaction = await this.aiProviderService.parseEmail(emailBody, gmailId);
         
         if (transaction) {
           const movementRow = this.createMovementRow(transaction, nextId);
@@ -118,7 +118,7 @@ class ExpenseTracker {
           // 3. Use AI to analyze the category and split requirements
           // Combine user description and comment for analysis
           const fullDescription = [userDescription, comment].filter(Boolean).join(' ');
-          const analysisResult = await this.googleAIStudioService.analyzeCategory(fullDescription, movementData);
+          const analysisResult = await this.aiProviderService.analyzeCategory(fullDescription, movementData);
 
           if (analysisResult) {
             // If AI flags as earning, programmatically set direction, type, and category.
@@ -510,7 +510,7 @@ class ExpenseTracker {
         const userDescription = movement[COLUMNS.USER_DESCRIPTION];
 
         try {
-          const transaction = await this.googleAIStudioService.parseManualEntry(userDescription);
+          const transaction = await this.aiProviderService.parseManualEntry(userDescription);
 
           if (!transaction) {
             Logger.log(`Could not infer fields for movement ${movementId}: "${userDescription}"`);

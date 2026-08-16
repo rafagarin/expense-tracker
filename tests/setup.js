@@ -87,7 +87,9 @@ const sourceFiles = [
   'Database.js',
   'GmailService.js',
   'MonzoService.js',
-  'AIStudioService.js',
+  'GoogleAIClient.js',
+  'OpenAIClient.js',
+  'AIProviderService.js',
   'ExpenseTracker.js',
 ];
 

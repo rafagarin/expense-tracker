@@ -48,7 +48,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.splitMovement = vi.fn().mockReturnValue(2);
     tracker.database.splitExpenseForRecategorization = vi.fn().mockReturnValue(2);
     tracker.database.convertMovementToDebit = vi.fn();
-    tracker.googleAIStudioService.analyzeCategory = vi.fn();
+    tracker.aiProviderService.analyzeCategory = vi.fn();
   });
 
   // --- early exit ---
@@ -58,7 +58,7 @@ describe('processUncategorizedMovements', () => {
 
     await tracker.processUncategorizedMovements();
 
-    expect(tracker.googleAIStudioService.analyzeCategory).not.toHaveBeenCalled();
+    expect(tracker.aiProviderService.analyzeCategory).not.toHaveBeenCalled();
   });
 
   // --- simple categorization ---
@@ -67,7 +67,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1 }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(
       makeAnalysisResult({ category: 'restaurants' })
     );
 
@@ -85,11 +85,11 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, amount: 75, currency: 'USD', sourceDescription: 'Amazon', type: 'Expense', direction: 'Outflow' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(makeAnalysisResult());
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(makeAnalysisResult());
 
     await tracker.processUncategorizedMovements();
 
-    expect(tracker.googleAIStudioService.analyzeCategory).toHaveBeenCalledWith(
+    expect(tracker.aiProviderService.analyzeCategory).toHaveBeenCalledWith(
       'Lunch',
       { amount: 75, currency: 'USD', sourceDescription: 'Amazon', type: 'Expense', direction: 'Outflow' }
     );
@@ -99,11 +99,11 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Supermarket', comment: 'split 15 for household' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(makeAnalysisResult());
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(makeAnalysisResult());
 
     await tracker.processUncategorizedMovements();
 
-    expect(tracker.googleAIStudioService.analyzeCategory).toHaveBeenCalledWith(
+    expect(tracker.aiProviderService.analyzeCategory).toHaveBeenCalledWith(
       'Supermarket split 15 for household',
       expect.anything()
     );
@@ -113,11 +113,11 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Lunch', comment: null }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(makeAnalysisResult());
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(makeAnalysisResult());
 
     await tracker.processUncategorizedMovements();
 
-    expect(tracker.googleAIStudioService.analyzeCategory).toHaveBeenCalledWith(
+    expect(tracker.aiProviderService.analyzeCategory).toHaveBeenCalledWith(
       'Lunch',
       expect.anything()
     );
@@ -129,7 +129,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Monthly salary' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(
       makeAnalysisResult({ category: 'None', is_earning: true })
     );
 
@@ -145,7 +145,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Transfer to savings' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(
       makeAnalysisResult({ category: 'None', is_neutral: true })
     );
 
@@ -163,7 +163,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Supermarket' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(
       makeAnalysisResult({
         category: null,
         needs_split: true,
@@ -189,7 +189,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Dinner with John' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(
       makeAnalysisResult({
         needs_split: true,
         split_type: 'DEBIT',
@@ -215,7 +215,7 @@ describe('processUncategorizedMovements', () => {
     tracker.database.getMovementsNeedingCategoryAnalysis.mockReturnValue([
       makeMovement({ id: 1, userDescription: 'Paid for whole team lunch' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory.mockResolvedValue(
+    tracker.aiProviderService.analyzeCategory.mockResolvedValue(
       makeAnalysisResult({
         category: null,
         needs_split: true,
@@ -239,7 +239,7 @@ describe('processUncategorizedMovements', () => {
       makeMovement({ id: 1, userDescription: 'Unclear transaction' }),
       makeMovement({ id: 2, userDescription: 'Coffee' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory
+    tracker.aiProviderService.analyzeCategory
       .mockResolvedValueOnce(null)
       .mockResolvedValue(makeAnalysisResult());
 
@@ -254,7 +254,7 @@ describe('processUncategorizedMovements', () => {
       makeMovement({ id: 1, userDescription: 'Broken movement' }),
       makeMovement({ id: 2, userDescription: 'Fine movement' }),
     ]);
-    tracker.googleAIStudioService.analyzeCategory
+    tracker.aiProviderService.analyzeCategory
       .mockRejectedValueOnce(new Error('API timeout'))
       .mockResolvedValue(makeAnalysisResult());
 

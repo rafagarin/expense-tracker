@@ -89,6 +89,12 @@ const API_CONFIG = {
     MODEL: 'gemini-2.5-flash-lite',
     API_KEY_PROPERTY: 'GOOGLE_AI_STUDIO_API_KEY'
   },
+  // OpenAI API configuration
+  OPENAI: {
+    BASE_URL: 'https://api.openai.com/v1',
+    MODEL: 'gpt-5.6-luna',
+    API_KEY_PROPERTY: 'OPENAI_API_KEY'
+  },
   // Monzo API configuration
   MONZO: {
     BASE_URL: 'https://api.monzo.com',

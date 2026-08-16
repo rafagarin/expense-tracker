@@ -27,7 +27,7 @@ describe('processDescriptionOnlyMovements', () => {
     tracker = new ExpenseTracker();
     tracker.database.getMovementsNeedingFieldInference = vi.fn();
     tracker.database.updateMovementWithInferredFields = vi.fn();
-    tracker.googleAIStudioService.parseManualEntry = vi.fn();
+    tracker.aiProviderService.parseManualEntry = vi.fn();
     tracker.currencyConversionService.getAllCurrencyValues = vi.fn().mockReturnValue({
       clpValue: 42500,
       usdValue: 53,
@@ -42,7 +42,7 @@ describe('processDescriptionOnlyMovements', () => {
 
     await tracker.processDescriptionOnlyMovements();
 
-    expect(tracker.googleAIStudioService.parseManualEntry).not.toHaveBeenCalled();
+    expect(tracker.aiProviderService.parseManualEntry).not.toHaveBeenCalled();
     expect(tracker.database.updateMovementWithInferredFields).not.toHaveBeenCalled();
   });
 
@@ -52,18 +52,18 @@ describe('processDescriptionOnlyMovements', () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ id: 1, userDescription: 'paid £42.50 at Costa Coffee' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(makeTransaction());
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(makeTransaction());
 
     await tracker.processDescriptionOnlyMovements();
 
-    expect(tracker.googleAIStudioService.parseManualEntry).toHaveBeenCalledWith('paid £42.50 at Costa Coffee');
+    expect(tracker.aiProviderService.parseManualEntry).toHaveBeenCalledWith('paid £42.50 at Costa Coffee');
   });
 
   it('calls updateMovementWithInferredFields with correct fields for an expense', async () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ id: 5, userDescription: 'paid £42.50 at Costa Coffee' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(
       makeTransaction({ amount: 42.5, currency: 'GBP', transactionType: MOVEMENT_TYPES.EXPENSE })
     );
 
@@ -86,7 +86,7 @@ describe('processDescriptionOnlyMovements', () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ userDescription: 'paid £42.50 at Costa Coffee' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(makeTransaction());
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(makeTransaction());
 
     await tracker.processDescriptionOnlyMovements();
 
@@ -100,7 +100,7 @@ describe('processDescriptionOnlyMovements', () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ userDescription: 'salary £2500' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.EARNING })
     );
 
@@ -115,7 +115,7 @@ describe('processDescriptionOnlyMovements', () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ userDescription: 'transfer to savings' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.NEUTRAL })
     );
 
@@ -130,7 +130,7 @@ describe('processDescriptionOnlyMovements', () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ userDescription: 'John paid for me £30' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.CREDIT })
     );
 
@@ -145,7 +145,7 @@ describe('processDescriptionOnlyMovements', () => {
     tracker.database.getMovementsNeedingFieldInference.mockReturnValue([
       makeDescriptionOnlyMovement({ userDescription: 'lent John £30' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry.mockResolvedValue(
+    tracker.aiProviderService.parseManualEntry.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.DEBIT })
     );
 
@@ -163,7 +163,7 @@ describe('processDescriptionOnlyMovements', () => {
       makeDescriptionOnlyMovement({ id: 1, userDescription: 'unclear' }),
       makeDescriptionOnlyMovement({ id: 2, userDescription: 'paid £10 for coffee' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry
+    tracker.aiProviderService.parseManualEntry
       .mockResolvedValueOnce(null)
       .mockResolvedValue(makeTransaction());
 
@@ -178,7 +178,7 @@ describe('processDescriptionOnlyMovements', () => {
       makeDescriptionOnlyMovement({ id: 1, userDescription: 'broken' }),
       makeDescriptionOnlyMovement({ id: 2, userDescription: 'paid £10 for coffee' }),
     ]);
-    tracker.googleAIStudioService.parseManualEntry
+    tracker.aiProviderService.parseManualEntry
       .mockRejectedValueOnce(new Error('API timeout'))
       .mockResolvedValue(makeTransaction());
 

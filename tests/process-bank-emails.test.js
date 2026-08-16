@@ -30,7 +30,7 @@ describe('processBankEmails', () => {
     tracker.database.getNextId = vi.fn().mockReturnValue(1);
     tracker.database.addMovementsBatch = vi.fn();
     tracker.gmailService.getUnprocessedMessages = vi.fn();
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio = vi.fn();
+    tracker.aiProviderService.parseEmail = vi.fn();
     // Stub currency conversion so tests don't touch the spreadsheet.
     tracker.currencyConversionService.getAllCurrencyValues = vi.fn().mockReturnValue({
       clpValue: 50000,
@@ -44,13 +44,13 @@ describe('processBankEmails', () => {
 
     await tracker.processBankEmails();
 
-    expect(tracker.googleAIStudioService.parseEmailWithGoogleAIStudio).not.toHaveBeenCalled();
+    expect(tracker.aiProviderService.parseEmail).not.toHaveBeenCalled();
     expect(tracker.database.addMovementsBatch).not.toHaveBeenCalled();
   });
 
   it('does not call addMovementsBatch when all emails fail to parse', async () => {
     tracker.gmailService.getUnprocessedMessages.mockReturnValue([makeMessage('gmail-1')]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio.mockResolvedValue(null);
+    tracker.aiProviderService.parseEmail.mockResolvedValue(null);
 
     await tracker.processBankEmails();
 
@@ -59,7 +59,7 @@ describe('processBankEmails', () => {
 
   it('adds an expense movement with direction=Outflow and no status', async () => {
     tracker.gmailService.getUnprocessedMessages.mockReturnValue([makeMessage('gmail-1')]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio.mockResolvedValue(
+    tracker.aiProviderService.parseEmail.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.EXPENSE })
     );
 
@@ -74,7 +74,7 @@ describe('processBankEmails', () => {
 
   it('adds a credit movement with direction=Inflow and Pending Settlement status', async () => {
     tracker.gmailService.getUnprocessedMessages.mockReturnValue([makeMessage('gmail-1')]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio.mockResolvedValue(
+    tracker.aiProviderService.parseEmail.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.CREDIT })
     );
 
@@ -88,7 +88,7 @@ describe('processBankEmails', () => {
 
   it('adds a debit repayment movement with direction=Neutral and no status', async () => {
     tracker.gmailService.getUnprocessedMessages.mockReturnValue([makeMessage('gmail-1')]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio.mockResolvedValue(
+    tracker.aiProviderService.parseEmail.mockResolvedValue(
       makeTransaction({ transactionType: MOVEMENT_TYPES.DEBIT_REPAYMENT })
     );
 
@@ -105,7 +105,7 @@ describe('processBankEmails', () => {
       makeMessage('gmail-fail'),
       makeMessage('gmail-ok'),
     ]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio
+    tracker.aiProviderService.parseEmail
       .mockResolvedValueOnce(null)
       .mockResolvedValue(makeTransaction({ gmailId: 'gmail-ok' }));
 
@@ -122,7 +122,7 @@ describe('processBankEmails', () => {
       makeMessage('gmail-1'),
       makeMessage('gmail-2'),
     ]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio
+    tracker.aiProviderService.parseEmail
       .mockResolvedValueOnce(makeTransaction({ gmailId: 'gmail-1' }))
       .mockResolvedValue(makeTransaction({ gmailId: 'gmail-2' }));
 
@@ -135,7 +135,7 @@ describe('processBankEmails', () => {
 
   it('sets source=Gmail, source_id=gmailId, and currency values on the row', async () => {
     tracker.gmailService.getUnprocessedMessages.mockReturnValue([makeMessage('gmail-xyz')]);
-    tracker.googleAIStudioService.parseEmailWithGoogleAIStudio.mockResolvedValue(
+    tracker.aiProviderService.parseEmail.mockResolvedValue(
       makeTransaction({ gmailId: 'gmail-xyz', amount: 50, currency: 'GBP' })
     );
 

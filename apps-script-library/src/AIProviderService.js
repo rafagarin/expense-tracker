@@ -4,8 +4,7 @@
  */
 class AIProviderService {
   constructor(clientProperties = null) {
-    // Currently hardcoded to GoogleAIClient, but could be made configurable.
-    this.aiClient = new GoogleAIClient(clientProperties);
+    this.aiClient = new OpenAIClient(clientProperties);
     this.categoryService = new CategoryService();
   }
 
@@ -20,7 +19,7 @@ class AIProviderService {
       const prompt = this.createEmailParsingPrompt(emailBody);
       const response = await this.aiClient._callApi(prompt);
       
-      if (response && response.candidates && response.candidates.length > 0) {
+      if (response) {
         return this.parseEmailResponse(response, gmailId);
       }
       
@@ -151,7 +150,7 @@ If you cannot extract any of these fields, set them to null. Only return valid J
     try {
       const prompt = this.createManualEntryPrompt(description);
       const response = await this.aiClient._callApi(prompt);
-      if (response && response.candidates && response.candidates.length > 0) {
+      if (response) {
         return this.parseManualEntryResponse(response, description);
       }
       return null;
@@ -252,7 +251,7 @@ Output: { "amount": 200, "currency": "GBP", "transaction_type": "neutral" }`;
       const prompt = this.createCategoryAnalysisPrompt(userDescription, movementData);
       const response = await this.aiClient._callApi(prompt);
       
-      if (response && response.candidates && response.candidates.length > 0) {
+      if (response) {
         return this.parseCategoryAnalysisResponse(response);
       }
       
@@ -471,7 +470,7 @@ Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_spli
       const prompt = this.createDebitMatchingPrompt(repaymentMovement, pendingDebits);
       const response = await this.aiClient._callApi(prompt);
       
-      if (response && response.candidates && response.candidates.length > 0) {
+      if (response) {
         return this.parseDebitMatchingResponse(response);
       }
       
@@ -541,12 +540,8 @@ Return format: Just the ID number (e.g., "123") or "null" if no match found.`;
    */
   parseDebitMatchingResponse(apiResponse) {
     try {
-      if (!apiResponse.candidates || apiResponse.candidates.length === 0) {
-        Logger.log('No candidates found in debit matching response');
-        return null;
-      }
-
-      const textContent = apiResponse.candidates[0].content.parts[0].text.trim();
+      const parsedData = this.aiClient._parseJsonResponse(apiResponse);
+      const textContent = parsedData ? String(Object.values(parsedData)[0]).trim() : '';
       
       // Try to extract a number (the ID) or "null"
       const idMatch = textContent.match(/(\d+)/);
