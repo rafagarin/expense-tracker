@@ -1,44 +1,77 @@
 /**
- * Google AI Studio service for enhanced email parsing using Gemini
+ * Generic AI Provider service for enhanced transaction parsing and analysis.
+ * This service orchestrates AI tasks by delegating to a specific AI client.
  */
-
-class GoogleAIStudioService {
+class AIProviderService {
   constructor(clientProperties = null) {
-    this.clientProperties = clientProperties;
-    this.googleAIStudioApiKey = getApiKey(API_CONFIG.GOOGLE_AI_STUDIO.API_KEY_PROPERTY, clientProperties);
-    this.googleAIStudioBaseUrl = API_CONFIG.GOOGLE_AI_STUDIO.BASE_URL;
-    this.googleAIStudioModel = API_CONFIG.GOOGLE_AI_STUDIO.MODEL;
+    // Currently hardcoded to GoogleAIClient, but could be made configurable.
+    this.aiClient = new GoogleAIClient(clientProperties);
     this.categoryService = new CategoryService();
   }
 
   /**
-   * Parse email content using Google AI Studio to extract transaction information
+   * Parse email content using the configured AI client to extract transaction information.
    * @param {string} emailBody - The email body text
    * @param {string} gmailId - The Gmail message ID
    * @returns {Object|null} Parsed transaction data or null if parsing fails
    */
-  async parseEmailWithGoogleAIStudio(emailBody, gmailId) {
+  async parseEmail(emailBody, gmailId) {
     try {
-      const prompt = this.createGoogleAIStudioParsingPrompt(emailBody);
-      const response = await this.callGoogleAIStudioAPI(prompt);
+      const prompt = this.createEmailParsingPrompt(emailBody);
+      const response = await this.aiClient._callApi(prompt);
       
       if (response && response.candidates && response.candidates.length > 0) {
-        return this.parseGoogleAIStudioResponse(response, gmailId);
+        return this.parseEmailResponse(response, gmailId);
       }
       
       return null;
     } catch (error) {
-      Logger.log(`Error parsing email with Google AI Studio: ${error.message}`);
+      Logger.log(`Error parsing email with AI provider: ${error.message}`);
       return null;
     }
   }
 
   /**
-   * Create a prompt for Google AI Studio to parse bank email content
-   * @param {string} emailBody - The email body text
-   * @returns {string} The formatted prompt
+   * Parse the AI client's response for email parsing and convert it to our transaction format.
+   * @param {Object} apiResponse - The full API response object
+   * @param {string} gmailId - The Gmail message ID
+   * @returns {Object|null} Parsed transaction object or null if parsing fails
    */
-  createGoogleAIStudioParsingPrompt(emailBody) {
+  parseEmailResponse(apiResponse, gmailId) {
+    try {
+      const parsedData = this.aiClient._parseJsonResponse(apiResponse);
+      if (!parsedData) return null;
+      
+      // Validate required fields
+      if (!parsedData.amount || !parsedData.currency) {
+        Logger.log('Missing required fields in AI response');
+        Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
+        return null;
+      }
+
+      // Map AI transaction_type to our movement type constants
+      const movementType = this.mapTransactionTypeToMovementType(parsedData.transaction_type);
+
+      return {
+        gmailId,
+        timestamp: parsedData.timestamp || new Date().toISOString(),
+        amount: parseFloat(parsedData.amount),
+        currency: parsedData.currency.toUpperCase(),
+        sourceDescription: parsedData.source_description || 'AI Parsed Transaction',
+        transactionType: movementType
+      };
+    } catch (error) {
+      Logger.log(`Error parsing AI email response: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Creates a prompt for parsing bank email content.
+   * @param {string} emailBody - The email body text.
+   * @returns {string} The formatted prompt.
+   */
+  createEmailParsingPrompt(emailBody) {
     return `You are an expert at parsing bank transaction emails for expense tracking. Extract transaction information from the following email and return it in JSON format.
 
 Email content:
@@ -66,98 +99,6 @@ Rules for classification:
 - Bank transfers that are clearly repayments = "debit repayment"
 
 If you cannot extract any of these fields, set them to null. Only return valid JSON, no additional text.`;
-  }
-
-  /**
-   * Call the Google AI Studio API with the given prompt
-   * @param {string} prompt - The prompt to send to the API
-   * @returns {Object} The API response
-   */
-  async callGoogleAIStudioAPI(prompt) {
-    const url = `${this.googleAIStudioBaseUrl}/models/${this.googleAIStudioModel}:generateContent`;
-    
-    const payload = {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }]
-    };
-
-    const options = {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-goog-api-key': this.googleAIStudioApiKey
-      },
-      payload: JSON.stringify(payload)
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    
-    if (response.getResponseCode() !== 200) {
-      const errorText = response.getContentText();
-      Logger.log(`Google AI Studio API request failed with status: ${response.getResponseCode()}, response: ${errorText}`);
-      throw new Error(`Google AI Studio API request failed with status: ${response.getResponseCode()}`);
-    }
-
-    return JSON.parse(response.getContentText());
-  }
-
-  /**
-   * Parse the Google AI Studio response and convert it to our transaction format
-   * @param {Object} apiResponse - The full API response object
-   * @param {string} gmailId - The Gmail message ID
-   * @returns {Object|null} Parsed transaction object or null if parsing fails
-   */
-  parseGoogleAIStudioResponse(apiResponse, gmailId) {
-    try {
-      // Extract the text content from the Google AI Studio API response
-      if (!apiResponse.candidates || apiResponse.candidates.length === 0) {
-        Logger.log('No candidates found in Google AI Studio response');
-        return null;
-      }
-
-      const textContent = apiResponse.candidates[0].content.parts[0].text;
-      
-      // Try to parse the text content as JSON
-      let parsedData;
-      try {
-        // Clean the response to extract JSON
-        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          Logger.log('No JSON found in Google AI Studio response text');
-          return null;
-        }
-        parsedData = JSON.parse(jsonMatch[0]);
-      } catch (jsonError) {
-        Logger.log(`Failed to parse JSON from Google AI Studio response: ${jsonError.message}`);
-        Logger.log(`Google AI Studio response text: ${textContent}`);
-        return null;
-      }
-      
-      // Validate required fields
-      if (!parsedData.amount || !parsedData.currency) {
-        Logger.log('Missing required fields in Google AI Studio response');
-        Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
-        return null;
-      }
-
-      // Map AI transaction_type to our movement type constants
-      const movementType = this.mapTransactionTypeToMovementType(parsedData.transaction_type);
-
-      return {
-        gmailId,
-        timestamp: parsedData.timestamp || new Date().toISOString(),
-        amount: parseFloat(parsedData.amount),
-        currency: parsedData.currency.toUpperCase(),
-        sourceDescription: parsedData.source_description || 'AI Parsed Transaction',
-        transactionType: movementType
-      };
-    } catch (error) {
-      Logger.log(`Error parsing Google AI Studio response: ${error.message}`);
-      return null;
-    }
   }
 
   /**
@@ -209,7 +150,7 @@ If you cannot extract any of these fields, set them to null. Only return valid J
   async parseManualEntry(description) {
     try {
       const prompt = this.createManualEntryPrompt(description);
-      const response = await this.callGoogleAIStudioAPI(prompt);
+      const response = await this.aiClient._callApi(prompt);
       if (response && response.candidates && response.candidates.length > 0) {
         return this.parseManualEntryResponse(response, description);
       }
@@ -221,9 +162,37 @@ If you cannot extract any of these fields, set them to null. Only return valid J
   }
 
   /**
-   * Build the AI prompt for parsing a free-form manual entry.
-   * @param {string} description - The raw user input
-   * @returns {string} Prompt string
+   * Parse the AI response for a manual entry into a transaction object.
+   * @param {Object} apiResponse - Full API response from the AI client.
+   * @param {string} originalDescription - The original user input (used as fallback source_description)
+   * @returns {Object|null} Transaction object or null on failure
+   */
+  parseManualEntryResponse(apiResponse, originalDescription) {
+    try {
+      const parsedData = this.aiClient._parseJsonResponse(apiResponse);
+      if (!parsedData) return null;
+
+      if (!parsedData.amount || !parsedData.currency) {
+        Logger.log(`Manual entry missing required fields: ${JSON.stringify(parsedData)}`);
+        return null;
+      }
+
+      return {
+        description: originalDescription,
+        amount: parseFloat(parsedData.amount),
+        currency: parsedData.currency.toUpperCase(),
+        transactionType: this.mapManualTransactionType(parsedData.transaction_type),
+      };
+    } catch (error) {
+      Logger.log(`Error parsing manual entry response: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Creates a prompt for parsing a free-form manual entry.
+   * @param {string} description - The raw user input.
+   * @returns {string} The formatted prompt.
    */
   createManualEntryPrompt(description) {
     return `You are an expert at parsing informal personal finance descriptions for expense tracking. Extract transaction information from the following description and return it as JSON.
@@ -273,45 +242,6 @@ Output: { "amount": 200, "currency": "GBP", "transaction_type": "neutral" }`;
   }
 
   /**
-   * Parse the AI response for a manual entry into a transaction object.
-   * @param {Object} apiResponse - Full API response from Google AI Studio
-   * @param {string} originalDescription - The original user input (used as fallback source_description)
-   * @returns {Object|null} Transaction object or null on failure
-   */
-  parseManualEntryResponse(apiResponse, originalDescription) {
-    try {
-      const textContent = apiResponse.candidates[0].content.parts[0].text;
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        Logger.log('No JSON found in manual entry response');
-        return null;
-      }
-      let parsedData;
-      try {
-        parsedData = JSON.parse(jsonMatch[0]);
-      } catch (e) {
-        Logger.log(`Failed to parse manual entry JSON: ${e.message}`);
-        return null;
-      }
-
-      if (!parsedData.amount || !parsedData.currency) {
-        Logger.log(`Manual entry missing required fields: ${JSON.stringify(parsedData)}`);
-        return null;
-      }
-
-      return {
-        description: originalDescription,
-        amount: parseFloat(parsedData.amount),
-        currency: parsedData.currency.toUpperCase(),
-        transactionType: this.mapManualTransactionType(parsedData.transaction_type),
-      };
-    } catch (error) {
-      Logger.log(`Error parsing manual entry response: ${error.message}`);
-      return null;
-    }
-  }
-
-  /**
    * Analyze user description and determine the appropriate category and split information
    * @param {string} userDescription - The user-provided description
    * @param {Object} movementData - Additional movement context (amount, source_description, etc.)
@@ -320,7 +250,7 @@ Output: { "amount": 200, "currency": "GBP", "transaction_type": "neutral" }`;
   async analyzeCategory(userDescription, movementData = {}) {
     try {
       const prompt = this.createCategoryAnalysisPrompt(userDescription, movementData);
-      const response = await this.callGoogleAIStudioAPI(prompt);
+      const response = await this.aiClient._callApi(prompt);
       
       if (response && response.candidates && response.candidates.length > 0) {
         return this.parseCategoryAnalysisResponse(response);
@@ -334,10 +264,81 @@ Output: { "amount": 200, "currency": "GBP", "transaction_type": "neutral" }`;
   }
 
   /**
-   * Create a prompt for Google AI Studio to analyze and categorize user descriptions
-   * @param {string} userDescription - The user-provided description
-   * @param {Object} movementData - Additional movement context
-   * @returns {string} The formatted prompt
+   * Parse the AI client's response for category analysis.
+   * @param {Object} apiResponse - The full API response object
+   * @returns {Object|null} Analysis result with category and split information or null if parsing fails
+   */
+  parseCategoryAnalysisResponse(apiResponse) {
+    try {
+      const parsedData = this.aiClient._parseJsonResponse(apiResponse);
+      if (!parsedData) return null;
+      
+      // Validate that the category is one of our valid categories, if it exists
+      const validCategories = this.categoryService.getCategoryNames();
+      // For neutral transactions, category should be None.
+      if (parsedData.is_neutral === true) {
+        parsedData.category = 'None';
+      // For earning transactions (inflow), category should be None.
+      } else if (parsedData.is_earning === true) {
+        parsedData.category = 'None';
+      } else if (parsedData.category && !validCategories.includes(parsedData.category)) {
+        Logger.log(`Invalid category in response: ${parsedData.category}`);
+        return null;
+      }
+
+      // Validate required fields
+      const isExpenseSplit = parsedData.needs_split && parsedData.split_type === 'EXPENSE';
+      const isEarningOrNeutral = parsedData.is_earning === true || parsedData.is_neutral === true;
+      const isFullDebit = parsedData.needs_split && parsedData.split_type === 'DEBIT' && parsedData.split_amount === 0;
+      if (!isExpenseSplit && !isEarningOrNeutral && !isFullDebit && !parsedData.category) {
+        Logger.log('Missing required category field in analysis response');
+        Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
+        return null;
+      }
+
+      // If needs_split is true, validate split fields
+      if (parsedData.needs_split === true) {
+        if (parsedData.is_neutral === true) {
+          Logger.log('Invalid split data in response: neutral transactions cannot be split.');
+          return null;
+        }
+        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_type) {
+          Logger.log('Invalid split data in response: missing split_amount or split_type');
+          Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
+          return null;
+        }
+
+        // For DEBIT splits with a personal portion, a split_category is required.
+        // When split_amount is 0 the user has no personal portion, so split_category is null.
+        if (parsedData.split_type === 'DEBIT' && parsedData.split_amount !== 0) {
+          if (!parsedData.split_category || !validCategories.includes(parsedData.split_category)) {
+            Logger.log(`Invalid or missing split_category for DEBIT split: ${parsedData.split_category}`);
+            return null;
+          }
+        }
+      }
+
+      return {
+        category: parsedData.category || null,
+        is_earning: parsedData.is_earning === true,
+        is_neutral: parsedData.is_neutral === true,
+        needs_split: parsedData.needs_split === true,
+        split_type: parsedData.split_type || null,
+        split_amount: parsedData.split_amount ?? null,
+        split_description: parsedData.split_description || null,
+        split_category: parsedData.split_category || null,
+      };
+    } catch (error) {
+      Logger.log(`Error parsing category analysis response: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Creates a prompt for analyzing and categorizing user descriptions.
+   * @param {string} userDescription - The user-provided description.
+   * @param {Object} movementData - Additional movement context.
+   * @returns {string} The formatted prompt.
    */
   createCategoryAnalysisPrompt(userDescription, movementData) {
     const { amount, currency, sourceDescription, type, direction } = movementData;
@@ -452,97 +453,6 @@ Example 4 (Self Transfer):
 User Description: "Move money to my savings account"
 Amount: USD 500
 Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null }`;
-}
-
-  /**
-   * Parse the Google AI Studio response for category analysis
-   * @param {Object} apiResponse - The full API response object
-   * @returns {Object|null} Analysis result with category and split information or null if parsing fails
-   */
-  parseCategoryAnalysisResponse(apiResponse) {
-    try {
-      if (!apiResponse.candidates || apiResponse.candidates.length === 0) {
-        Logger.log('No candidates found in category analysis response');
-        return null;
-      }
-
-      const textContent = apiResponse.candidates[0].content.parts[0].text.trim();
-      
-      // Try to parse the text content as JSON
-      let parsedData;
-      try {
-        // Clean the response to extract JSON
-        const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          Logger.log('No JSON found in category analysis response text');
-          return null;
-        }
-        parsedData = JSON.parse(jsonMatch[0]);
-      } catch (jsonError) {
-        Logger.log(`Failed to parse JSON from category analysis response: ${jsonError.message}`);
-        Logger.log(`Category analysis response text: ${textContent}`);
-        return null;
-      }
-      
-      // Validate that the category is one of our valid categories, if it exists
-      const validCategories = this.categoryService.getCategoryNames();
-      // For neutral transactions, category should be None.
-      if (parsedData.is_neutral === true) {
-        parsedData.category = 'None';
-      // For earning transactions (inflow), category should be None.
-      } else if (parsedData.is_earning === true) {
-        parsedData.category = 'None';
-      } else if (parsedData.category && !validCategories.includes(parsedData.category)) {
-        Logger.log(`Invalid category in response: ${parsedData.category}`);
-        return null;
-      }
-
-      // Validate required fields
-      const isExpenseSplit = parsedData.needs_split && parsedData.split_type === 'EXPENSE';
-      const isEarningOrNeutral = parsedData.is_earning === true || parsedData.is_neutral === true;
-      const isFullDebit = parsedData.needs_split && parsedData.split_type === 'DEBIT' && parsedData.split_amount === 0;
-      if (!isExpenseSplit && !isEarningOrNeutral && !isFullDebit && !parsedData.category) {
-        Logger.log('Missing required category field in analysis response');
-        Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
-        return null;
-      }
-
-      // If needs_split is true, validate split fields
-      if (parsedData.needs_split === true) {
-        if (parsedData.is_neutral === true) {
-          Logger.log('Invalid split data in response: neutral transactions cannot be split.');
-          return null;
-        }
-        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_type) {
-          Logger.log('Invalid split data in response: missing split_amount or split_type');
-          Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
-          return null;
-        }
-
-        // For DEBIT splits with a personal portion, a split_category is required.
-        // When split_amount is 0 the user has no personal portion, so split_category is null.
-        if (parsedData.split_type === 'DEBIT' && parsedData.split_amount !== 0) {
-          if (!parsedData.split_category || !validCategories.includes(parsedData.split_category)) {
-            Logger.log(`Invalid or missing split_category for DEBIT split: ${parsedData.split_category}`);
-            return null;
-          }
-        }
-      }
-
-      return {
-        category: parsedData.category || null,
-        is_earning: parsedData.is_earning === true,
-        is_neutral: parsedData.is_neutral === true,
-        needs_split: parsedData.needs_split === true,
-        split_type: parsedData.split_type || null,
-        split_amount: parsedData.split_amount ?? null,
-        split_description: parsedData.split_description || null,
-        split_category: parsedData.split_category || null,
-      };
-    } catch (error) {
-      Logger.log(`Error parsing category analysis response: ${error.message}`);
-      return null;
-    }
   }
 
   /**
@@ -559,7 +469,7 @@ Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_spli
       }
 
       const prompt = this.createDebitMatchingPrompt(repaymentMovement, pendingDebits);
-      const response = await this.callGoogleAIStudioAPI(prompt);
+      const response = await this.aiClient._callApi(prompt);
       
       if (response && response.candidates && response.candidates.length > 0) {
         return this.parseDebitMatchingResponse(response);
@@ -573,7 +483,7 @@ Output: { "category": null, "is_earning": false, "is_neutral": true, "needs_spli
   }
 
   /**
-   * Create a prompt for Google AI Studio to match debit repayments to pending debits
+   * Create a prompt for the AI client to match debit repayments to pending debits.
    * @param {Object} repaymentMovement - The debit repayment movement
    * @param {Array} pendingDebits - Array of pending debit movements
    * @returns {string} The formatted prompt
@@ -625,7 +535,7 @@ Return format: Just the ID number (e.g., "123") or "null" if no match found.`;
   }
 
   /**
-   * Parse the Google AI Studio response for debit matching
+   * Parse the AI client's response for debit matching.
    * @param {Object} apiResponse - The full API response object
    * @returns {number|null} The ID of the matching debit movement or null if no match found
    */
