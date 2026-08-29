@@ -756,6 +756,7 @@ class Database {
     reminderRow[COLUMNS.AI_COMMENT] = null;
     reminderRow[COLUMNS.CATEGORY] = 'None';
     reminderRow[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
+    reminderRow[COLUMNS.TAGS] = null;
     reminderRow[COLUMNS.SETTLED_MOVEMENT_ID] = null;
     reminderRow[COLUMNS.CLP_VALUE] = null;
     reminderRow[COLUMNS.USD_VALUE] = null;

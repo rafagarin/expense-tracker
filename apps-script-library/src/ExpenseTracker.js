@@ -388,6 +388,7 @@ class ExpenseTracker {
         movement.aiComment,                    // ai_comment
         movement.category,                     // category
         movement.status,                       // status
+        null,                                  // tags
         movement.settledMovementId,            // settled_movement_id
         currencyValues.clpValue,              // clp_value
         currencyValues.usdValue,              // usd_value
@@ -436,6 +437,7 @@ class ExpenseTracker {
       null,                                      // ai_comment
       null,                                      // category
       status,                                    // status
+      null,                                      // tags
       null,                                      // settled_movement_id
       currencyValues.clpValue,                   // clp_value
       currencyValues.usdValue,                   // usd_value
