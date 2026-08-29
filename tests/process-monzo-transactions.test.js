@@ -101,6 +101,20 @@ describe('processMonzoTransactions', () => {
     expect(batch[0].monzoId).toBe('tx_ok');
   });
 
+  it('ignores zero-amount transactions', async () => {
+    tracker.monzoService.getRecentTransactions.mockResolvedValue([
+      makeMonzoTransaction({ id: 'tx_zero', amount: 0 }),
+      makeMonzoTransaction({ id: 'tx_real', amount: -4250 }),
+    ]);
+
+    await tracker.processMonzoTransactions();
+
+    expect(tracker.database.addMovementsBatch).toHaveBeenCalledTimes(1);
+    const [batch] = tracker.database.addMovementsBatch.mock.calls[0];
+    expect(batch).toHaveLength(1);
+    expect(batch[0].monzoId).toBe('tx_real');
+  });
+
   // --- conversion logic (let convertTransactionToMovement run for real) ---
 
   it('converts a negative amount to an Expense with direction=Outflow', async () => {

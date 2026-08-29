@@ -132,10 +132,10 @@ class MonzoService {
       
       const transactions = await this.getTransactions(sinceDate);
       
-      // Filter out declined transactions (only present on declined transactions)
-      const successfulTransactions = transactions.filter(tx => !tx.decline_reason);
+      // Filter out declined transactions and any zero-value entries that should not be imported.
+      const successfulTransactions = transactions.filter(tx => !tx.decline_reason && Number(tx.amount) !== 0);
       
-      Logger.log(`Found ${transactions.length} transactions from the last 8 days (${successfulTransactions.length} successful, ${transactions.length - successfulTransactions.length} declined)`);
+      Logger.log(`Found ${transactions.length} transactions from the last 8 days (${successfulTransactions.length} successful, ${transactions.length - successfulTransactions.length} declined or zero-value)`);
       return successfulTransactions;
     } catch (error) {
       Logger.log(`Failed to get recent Monzo transactions: ${error.message}`);
@@ -151,6 +151,11 @@ class MonzoService {
    */
   convertTransactionToMovement(transaction, nextId) {
     try {
+      if (Number(transaction.amount) === 0) {
+        Logger.log(`Skipping Monzo transaction ${transaction.id} because amount is zero.`);
+        return null;
+      }
+
       // Determine transaction type based on amount and category
       let type, direction;
       
