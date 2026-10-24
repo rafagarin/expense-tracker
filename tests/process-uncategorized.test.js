@@ -123,6 +123,46 @@ describe('processUncategorizedMovements', () => {
     );
   });
 
+  // --- split reprocessing guard ---
+
+  it('does not treat already-split rows as needing category analysis', () => {
+    const db = new Database();
+    db.getAllMovements = vi.fn().mockReturnValue([
+      {
+        ...makeMovement({ id: 1, userDescription: 'Amazon items (split part) (own part)', category: null }),
+        [COLUMNS.AI_COMMENT]: 'Split into #42',
+      },
+      makeMovement({ id: 2, userDescription: 'Fresh lunch', category: null }),
+    ]);
+
+    const needingAnalysis = db.getMovementsNeedingCategoryAnalysis();
+
+    expect(needingAnalysis.map(m => m[COLUMNS.ID])).toEqual([2]);
+  });
+
+  it('does not split a row that is already part of a split chain', () => {
+    const db = new Database();
+    db.sheet = {
+      getRange: vi.fn(() => ({ setValue: vi.fn() })),
+    };
+    db.getAllMovements = vi.fn().mockReturnValue([
+      Object.assign(makeMovement({ id: 1, userDescription: 'Dinner (own part)', amount: 25, category: null }), {
+        [COLUMNS.AI_COMMENT]: 'Split into #99',
+      }),
+    ]);
+    db.getNextId = vi.fn().mockReturnValue(100);
+    db.addMovement = vi.fn();
+
+    const result = db.splitMovement(1, {
+      split_amount: 10,
+      split_category: 'restaurants',
+      split_description: 'Dinner shared',
+    });
+
+    expect(result).toBeNull();
+    expect(db.addMovement).not.toHaveBeenCalled();
+  });
+
   // --- earning / neutral flags ---
 
   it('sets direction=Inflow and type=Earning when is_earning is true', async () => {

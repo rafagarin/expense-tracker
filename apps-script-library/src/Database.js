@@ -162,6 +162,29 @@ class Database {
 
 
   /**
+   * Identify rows that are already outputs of a split workflow.
+   * These should not be reprocessed as fresh uncategorized transactions.
+   * @param {Array} movement - Movement row data
+   * @returns {boolean} True when the movement is already part of a split chain
+   */
+  isSplitRow(movement) {
+    if (!movement) {
+      return false;
+    }
+
+    const descriptor = [
+      movement[COLUMNS.USER_DESCRIPTION],
+      movement[COLUMNS.AI_COMMENT],
+    ].filter(value => value && String(value).trim() !== '').join(' ');
+
+    if (!descriptor) {
+      return false;
+    }
+
+    return /\(own part\)|\(split part\)|split into|split from/i.test(descriptor);
+  }
+
+  /**
    * Get movements that have user_description but no category
    * @returns {Array} Array of movements needing category analysis
    */
@@ -170,7 +193,8 @@ class Database {
     return allMovements.filter(movement => {
       const hasUserDescription = movement[COLUMNS.USER_DESCRIPTION] && movement[COLUMNS.USER_DESCRIPTION].trim() !== '';
       const hasNoCategory = !movement[COLUMNS.CATEGORY] || movement[COLUMNS.CATEGORY].trim() === '';
-      return hasUserDescription && hasNoCategory;
+      const isAlreadySplit = this.isSplitRow(movement);
+      return hasUserDescription && hasNoCategory && !isAlreadySplit;
     });
   }
 
@@ -405,8 +429,13 @@ class Database {
       Logger.log(`Original movement with ID ${originalMovementId} not found in database`);
       return null;
     }
-    
+
     const originalMovement = allMovements[originalMovementIndex];
+    if (this.isSplitRow(originalMovement)) {
+      Logger.log(`Skipping split for movement ID ${originalMovementId}: already part of a split chain.`);
+      return null;
+    }
+
     const nextId = this.getNextId();
     
     // Calculate the remaining amount (original - split amount)
@@ -500,6 +529,11 @@ class Database {
     }
     
     const originalMovement = allMovements[originalMovementIndex];
+    if (this.isSplitRow(originalMovement)) {
+      Logger.log(`Skipping expense re-split for movement ID ${originalMovementId}: already part of a split chain.`);
+      return null;
+    }
+
     const nextId = this.getNextId();
     
     // 2. Validate amounts
