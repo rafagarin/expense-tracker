@@ -85,8 +85,9 @@ async function processDescriptionOnlyMovements() {
  * Main function that performs all expense tracking actions with proper conditions
  * This is the primary entry point that orchestrates the entire workflow
  * @param {Object} clientProperties - Optional client properties object
+ * @param {Function|null} callback - Optional callback to run after the workflow completes
  */
-async function main(clientProperties = null) {
+async function main(clientProperties = null, callback = null) {
   try {
     Logger.log('Starting main expense tracking workflow...');
     const expenseTracker = new ExpenseTracker(clientProperties);
@@ -118,6 +119,10 @@ async function main(clientProperties = null) {
     // Step 7: Fix failed currency conversions
     Logger.log('=== Step 7: Fixing failed currency conversions ===');
     await expenseTracker.fixFailedCurrencyConversions();
+
+    if (typeof callback === 'function') {
+      await callback();
+    }
     
     Logger.log('Main expense tracking workflow completed successfully.');
     

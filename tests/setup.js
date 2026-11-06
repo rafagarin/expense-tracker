@@ -91,6 +91,7 @@ const sourceFiles = [
   'OpenAIClient.js',
   'AIProviderService.js',
   'ExpenseTracker.js',
+  'Code.js',
 ];
 
 for (const file of sourceFiles) {
