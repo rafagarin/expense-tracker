@@ -402,6 +402,7 @@ class ExpenseTracker {
         currencyValues.clpValue,              // clp_value
         currencyValues.usdValue,              // usd_value
         currencyValues.gbpValue,              // gbp_value
+        currencyValues.eurValue,              // eur_value
         movement.originalAmount,               // original_amount
         movement.id,                           // id
         SOURCES.MONZO,                         // source
@@ -451,6 +452,7 @@ class ExpenseTracker {
       currencyValues.clpValue,                   // clp_value
       currencyValues.usdValue,                   // usd_value
       currencyValues.gbpValue,                   // gbp_value
+      currencyValues.eurValue,                   // eur_value
       null,                                      // original_amount
       nextId,                                    // id
       SOURCES.GMAIL,                             // source
@@ -547,6 +549,7 @@ class ExpenseTracker {
             clpValue: currencyValues.clpValue,
             usdValue: currencyValues.usdValue,
             gbpValue: currencyValues.gbpValue,
+            eurValue: currencyValues.eurValue,
           });
 
         } catch (error) {

@@ -32,6 +32,7 @@ describe('processMonzoTransactions', () => {
       clpValue: 42500,
       usdValue: 53,
       gbpValue: 42.5,
+      eurValue: 39.5,
     });
   });
 
@@ -144,6 +145,7 @@ describe('processMonzoTransactions', () => {
     const row = batch[0].row;
     expect(row[COLUMNS.TYPE]).toBe(MOVEMENT_TYPES.EXPENSE);
     expect(row[COLUMNS.DIRECTION]).toBe(DIRECTIONS.OUTFLOW);
+    expect(row[COLUMNS.EUR_VALUE]).toBe(39.5);
   });
 
   it('converts a negative is_load transaction to Cash with direction=Inflow', async () => {

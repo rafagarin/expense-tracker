@@ -235,7 +235,7 @@ class Database {
    * Only updates fields that were missing; leaves user_description and category untouched.
    * @param {number} movementId - The ID of the movement to update
    * @param {Object} data - Inferred fields: timestamp, direction, type, amount, currency,
-   *                        sourceDescription, status, clpValue, usdValue, gbpValue
+  *                        sourceDescription, status, clpValue, usdValue, gbpValue, eurValue
    */
   updateMovementWithInferredFields(movementId, data) {
     const allMovements = this.getAllMovements();
@@ -270,6 +270,7 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(data.clpValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(data.usdValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(data.gbpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.EUR_VALUE + 1).setValue(data.eurValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.YEAR_MONTH + 1).setFormula(`=TEXT($A${sheetRowIndex}, "YYYY-MM")`);
 
     Logger.log(`Updated inferred fields for movement ${movementId}`);
@@ -466,7 +467,8 @@ class Database {
     const originalCurrencyValues = {
       clpValue: originalMovement[COLUMNS.CLP_VALUE],
       usdValue: originalMovement[COLUMNS.USD_VALUE],
-      gbpValue: originalMovement[COLUMNS.GBP_VALUE]
+      gbpValue: originalMovement[COLUMNS.GBP_VALUE],
+      eurValue: originalMovement[COLUMNS.EUR_VALUE]
     };
     
     // Calculate split ratio
@@ -501,6 +503,7 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(personalCurrencyValues.clpValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(personalCurrencyValues.usdValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(personalCurrencyValues.gbpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.EUR_VALUE + 1).setValue(personalCurrencyValues.eurValue);
     
     // 2. Create the shared portion as a new debit movement
     const sharedMovement = [...originalMovement];
@@ -519,6 +522,7 @@ class Database {
     sharedMovement[COLUMNS.CLP_VALUE] = sharedCurrencyValues.clpValue;
     sharedMovement[COLUMNS.USD_VALUE] = sharedCurrencyValues.usdValue;
     sharedMovement[COLUMNS.GBP_VALUE] = sharedCurrencyValues.gbpValue;
+    sharedMovement[COLUMNS.EUR_VALUE] = sharedCurrencyValues.eurValue;
     
     // Add the new debit movement to the database
     this.addMovement(sharedMovement);
@@ -564,7 +568,8 @@ class Database {
     const originalCurrencyValues = {
       clpValue: originalMovement[COLUMNS.CLP_VALUE],
       usdValue: originalMovement[COLUMNS.USD_VALUE],
-      gbpValue: originalMovement[COLUMNS.GBP_VALUE]
+      gbpValue: originalMovement[COLUMNS.GBP_VALUE],
+      eurValue: originalMovement[COLUMNS.EUR_VALUE]
     };
     
     // Proportional values for the remaining part of the original movement
@@ -593,6 +598,7 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(remainingCurrencyValues.clpValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(remainingCurrencyValues.usdValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(remainingCurrencyValues.gbpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.EUR_VALUE + 1).setValue(remainingCurrencyValues.eurValue);
 
     // 5. Create the new movement row
     const newMovement = [...originalMovement];
@@ -607,6 +613,7 @@ class Database {
     newMovement[COLUMNS.CLP_VALUE] = splitCurrencyValues.clpValue;
     newMovement[COLUMNS.USD_VALUE] = splitCurrencyValues.usdValue;
     newMovement[COLUMNS.GBP_VALUE] = splitCurrencyValues.gbpValue;
+    newMovement[COLUMNS.EUR_VALUE] = splitCurrencyValues.eurValue;
 
     // 6. Add the new movement to the database
     this.addMovement(newMovement);
@@ -693,11 +700,13 @@ class Database {
       const clpValue = movement[COLUMNS.CLP_VALUE];
       const usdValue = movement[COLUMNS.USD_VALUE];
       const gbpValue = movement[COLUMNS.GBP_VALUE];
+      const eurValue = movement[COLUMNS.EUR_VALUE];
       
       // Check if any of the currency values represent failed conversions
       return currencyConversionService.isFailedConversion(clpValue) ||
              currencyConversionService.isFailedConversion(usdValue) ||
-             currencyConversionService.isFailedConversion(gbpValue);
+              currencyConversionService.isFailedConversion(gbpValue) ||
+              currencyConversionService.isFailedConversion(eurValue);
     });
   }
 
@@ -734,7 +743,7 @@ class Database {
       currency
     );
     
-    if (!currencyValues || (!currencyValues.clpValue && !currencyValues.usdValue && !currencyValues.gbpValue)) {
+    if (!currencyValues || (!currencyValues.clpValue && !currencyValues.usdValue && !currencyValues.gbpValue && !currencyValues.eurValue)) {
       Logger.log(`Failed to fix currency conversion for movement ID ${movementId}`);
       return false;
     }
@@ -746,8 +755,9 @@ class Database {
     this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(currencyValues.clpValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(currencyValues.usdValue);
     this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(currencyValues.gbpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.EUR_VALUE + 1).setValue(currencyValues.eurValue);
     
-    Logger.log(`Fixed currency conversion for movement ID ${movementId}: CLP=${currencyValues.clpValue}, USD=${currencyValues.usdValue}, GBP=${currencyValues.gbpValue}`);
+    Logger.log(`Fixed currency conversion for movement ID ${movementId}: CLP=${currencyValues.clpValue}, USD=${currencyValues.usdValue}, GBP=${currencyValues.gbpValue}, EUR=${currencyValues.eurValue}`);
     return true;
   }
 
@@ -818,6 +828,7 @@ class Database {
     reminderRow[COLUMNS.CLP_VALUE] = null;
     reminderRow[COLUMNS.USD_VALUE] = null;
     reminderRow[COLUMNS.GBP_VALUE] = null;
+    reminderRow[COLUMNS.EUR_VALUE] = null;
     reminderRow[COLUMNS.ORIGINAL_AMOUNT] = null;
     reminderRow[COLUMNS.ID] = nextId;
     reminderRow[COLUMNS.SOURCE] = SOURCES.MANUAL;

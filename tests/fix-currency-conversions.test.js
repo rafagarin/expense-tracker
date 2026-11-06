@@ -9,14 +9,16 @@ function makeMovement({
   clpValue = null,
   usdValue = null,
   gbpValue = null,
+  eurValue = null,
 } = {}) {
-  const row = new Array(21).fill(null);
+  const row = new Array(COLUMNS.YEAR_MONTH + 1).fill(null);
   row[COLUMNS.ID] = id;
   row[COLUMNS.AMOUNT] = amount;
   row[COLUMNS.CURRENCY] = currency;
   row[COLUMNS.CLP_VALUE] = clpValue;
   row[COLUMNS.USD_VALUE] = usdValue;
   row[COLUMNS.GBP_VALUE] = gbpValue;
+  row[COLUMNS.EUR_VALUE] = eurValue;
   return row;
 }
 
@@ -51,6 +53,7 @@ describe('fixFailedCurrencyConversions', () => {
       clpValue: 50000,
       usdValue: 62,
       gbpValue: 50,
+      eurValue: 46,
     });
   });
 
@@ -84,10 +87,11 @@ describe('fixFailedCurrencyConversions', () => {
     await tracker.fixFailedCurrencyConversions();
 
     expect(CurrencyConversionService.prototype.getAllCurrencyValues).toHaveBeenCalled();
-    expect(setValueSpy).toHaveBeenCalledTimes(3);
+    expect(setValueSpy).toHaveBeenCalledTimes(4);
     expect(setValueSpy).toHaveBeenCalledWith(50000);
     expect(setValueSpy).toHaveBeenCalledWith(62);
     expect(setValueSpy).toHaveBeenCalledWith(50);
+    expect(setValueSpy).toHaveBeenCalledWith(46);
   });
 
   it('leaves the movement unchanged when getAllCurrencyValues returns null', async () => {

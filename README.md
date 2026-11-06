@@ -10,7 +10,7 @@ The database columns are:
 - direction (any of: Outflow, Inflow, Neutral)
 - type (any of: Expense, Cash, Debit, Credit, Debit Repayment, Transfer)
 - amount
-- currency (I’m expecting CLP, USD, GBP)
+- currency (I’m expecting CLP, USD, GBP, EUR)
 - source_description (the usually non-descriptive string that the bank email provides)
 - user_description (a user-provided description that will help with filling in more info about the movement, in step 3)
 - comment (free text field, for instructions to AI)
@@ -20,6 +20,7 @@ The database columns are:
 - clp_value (same as amount but converted to CLP)
 - usd_value (same as amount but converted to USD)
 - gbp_value (same as amount but converted to GBP)
+- eur_value (same as amount but converted to EUR)
 - id (a unique id representing the movement)
 - source ("gmail" or "monzo")
 - source_id (ensures idempotency for movements that come from Gmail or Monzo)
@@ -50,7 +51,7 @@ The database columns are:
 `MonzoService.js` - Monzo API integration for fetching and processing bank transactions
 `AIStudioService.js` - Google AI Studio integration for intelligent email parsing and category analysis using Gemini
 `CategoryService.js` - Dynamic category management loading categories from Settings sheet
-`CurrencyConversionService.js` - Currency conversion between CLP, USD, and GBP using rates from Values sheet
+`CurrencyConversionService.js` - Currency conversion between CLP, USD, GBP, and EUR using rates from Values sheet
 `appsscript.json` - Google Apps Script project configuration and permissions
 
 
@@ -83,6 +84,7 @@ To set up the project for development:
 - Copy the spreadsheet
 - Clone the code
 - Add values for `GOOGLE_AI_STUDIO_API_KEY`, `MONZO_ACCESS_TOKEN`, `MONZO_REFRESH_TOKEN`, `MONZO_CLIENT_ID`, `MONZO_CLIENT_SECRET`
+- Set the EUR/CLP exchange rate in cell `C6` of the spreadsheet's `Values` sheet
 - Use [clasp](https://github.com/google/clasp) to push updates to the code
 - Run tests with `npm run test`
 

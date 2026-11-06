@@ -85,7 +85,7 @@ IMPORTANT: Classify the transaction type using ONLY these specific values:
 
 Please extract the following information and return it as a JSON object:
 - amount: The transaction amount as a number
-- currency: The currency code (CLP, USD, or GBP)
+- currency: The currency code (CLP, USD, GBP, or EUR)
 - source_description: The merchant/description from the email
 - timestamp: The transaction timestamp in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)
 - transaction_type: ONE of the 5 types listed above (expense, cash, debit, credit, debit repayment)
@@ -207,18 +207,18 @@ TRANSACTION TYPES — choose exactly one:
 - "earning"          Income I received (salary, freelance, gift money, etc.)
 - "neutral"          Transfer between my own accounts; no real spending or income
 
-CURRENCY SYMBOLS: £ → GBP, $ → USD, no symbol / CLP → CLP
+CURRENCY SYMBOLS: £ → GBP, $ → USD, € → EUR, no symbol / CLP → CLP
 
 FIELDS to extract:
 - amount: number (always positive)
-- currency: "GBP", "USD", or "CLP"
+- currency: "GBP", "USD", "CLP", or "EUR"
 - transaction_type: one of the types above
 
 Return ONLY valid JSON, no extra text:
 
 {
   "amount": number | null,
-  "currency": "GBP" | "USD" | "CLP" | null,
+  "currency": "GBP" | "USD" | "CLP" | "EUR" | null,
   "transaction_type": "string" | null
 }
 
@@ -235,6 +235,9 @@ Output: { "amount": 30, "currency": "USD", "transaction_type": "debit repayment"
 
 Input: "salary 2500 GBP"
 Output: { "amount": 2500, "currency": "GBP", "transaction_type": "earning" }
+
+Input: "paid €18.50 for lunch"
+Output: { "amount": 18.50, "currency": "EUR", "transaction_type": "expense" }
 
 Input: "transferred £200 to my savings account"
 Output: { "amount": 200, "currency": "GBP", "transaction_type": "neutral" }`;

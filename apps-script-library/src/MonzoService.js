@@ -216,6 +216,7 @@ class MonzoService {
         clpValue: null, // Will be calculated by currency conversion service
         usdValue: null, // Will be calculated by currency conversion service
         gbpValue: null, // Will be calculated by currency conversion service
+        eurValue: null, // Will be calculated by currency conversion service
         originalAmount: null,
         id: nextId,
         source: 'monzo',

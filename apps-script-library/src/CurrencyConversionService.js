@@ -1,6 +1,6 @@
 /**
  * Currency conversion service for the expense tracker
- * Handles conversion between CLP, USD, and GBP using rates from Values sheet
+ * Handles conversion between CLP, USD, GBP, and EUR using rates from Values sheet
  */
 
 class CurrencyConversionService {
@@ -30,21 +30,24 @@ class CurrencyConversionService {
    * - C3: USD/CLP rate
    * - C4: GBP/USD rate  
    * - C5: GBP/CLP rate
+  * - C6: EUR/CLP rate
    */
   loadConversionRates() {
     try {
       const usdToClp = this.settingsSheet.getRange('C3').getValue();
       const gbpToUsd = this.settingsSheet.getRange('C4').getValue();
       const gbpToClp = this.settingsSheet.getRange('C5').getValue();
+      const eurToClp = this.settingsSheet.getRange('C6').getValue();
 
-      if (!usdToClp || !gbpToUsd || !gbpToClp) {
-        throw new Error(`Conversion rates not found in "${SHEET_NAMES.VALUES}" sheet. Please set values in C3, C4, and C5.`);
+      if (!usdToClp || !gbpToUsd || !gbpToClp || !eurToClp) {
+        throw new Error(`Conversion rates not found in "${SHEET_NAMES.VALUES}" sheet. Please set values in C3, C4, C5, and C6.`);
       }
 
       this.conversionRates = {
         'USD/CLP': usdToClp,
         'GBP/USD': gbpToUsd,
-        'GBP/CLP': gbpToClp
+        'GBP/CLP': gbpToClp,
+        'EUR/CLP': eurToClp
       };
 
       Logger.log('Conversion rates loaded:', this.conversionRates);
@@ -57,8 +60,8 @@ class CurrencyConversionService {
   /**
    * Convert an amount from one currency to another
    * @param {number} amount - The amount to convert
-   * @param {string} fromCurrency - Source currency (CLP, USD, GBP)
-   * @param {string} toCurrency - Target currency (CLP, USD, GBP)
+  * @param {string} fromCurrency - Source currency (CLP, USD, GBP, EUR)
+  * @param {string} toCurrency - Target currency (CLP, USD, GBP, EUR)
    * @returns {number} Converted amount
    */
   convertCurrency(amount, fromCurrency, toCurrency) {
@@ -89,6 +92,8 @@ class CurrencyConversionService {
         return amount * this.conversionRates['USD/CLP'];
       case CURRENCIES.GBP:
         return amount * this.conversionRates['GBP/CLP'];
+      case CURRENCIES.EUR:
+        return amount * this.conversionRates['EUR/CLP'];
       default:
         throw new Error(`Unsupported currency: ${currency}`);
     }
@@ -108,6 +113,8 @@ class CurrencyConversionService {
         return amountInClp / this.conversionRates['USD/CLP'];
       case CURRENCIES.GBP:
         return amountInClp / this.conversionRates['GBP/CLP'];
+      case CURRENCIES.EUR:
+        return amountInClp / this.conversionRates['EUR/CLP'];
       default:
         throw new Error(`Unsupported currency: ${currency}`);
     }
@@ -117,16 +124,20 @@ class CurrencyConversionService {
    * Split currency values proportionally based on the split ratio
    * @param {number} originalAmount - Original amount in source currency
    * @param {number} splitAmount - Amount to split out
-   * @param {Object} originalCurrencyValues - Original currency values {clpValue, usdValue, gbpValue}
-   * @returns {Object} Split currency values {clpValue, usdValue, gbpValue}
+  * @param {Object} originalCurrencyValues - Original currency values {clpValue, usdValue, gbpValue, eurValue}
+  * @returns {Object} Split currency values {clpValue, usdValue, gbpValue, eurValue}
    */
   splitCurrencyValues(originalAmount, splitAmount, originalCurrencyValues) {
     const splitRatio = splitAmount / originalAmount;
+    const splitValue = value => value === null || value === undefined
+      ? value
+      : Math.round(value * splitRatio * 100) / 100;
     
     return {
-      clpValue: Math.round(originalCurrencyValues.clpValue * splitRatio * 100) / 100,
-      usdValue: Math.round(originalCurrencyValues.usdValue * splitRatio * 100) / 100,
-      gbpValue: Math.round(originalCurrencyValues.gbpValue * splitRatio * 100) / 100
+      clpValue: splitValue(originalCurrencyValues.clpValue),
+      usdValue: splitValue(originalCurrencyValues.usdValue),
+      gbpValue: splitValue(originalCurrencyValues.gbpValue),
+      eurValue: splitValue(originalCurrencyValues.eurValue)
     };
   }
 
@@ -136,7 +147,7 @@ class CurrencyConversionService {
    * @returns {boolean} True if the currency is supported internally
    */
   isSupportedCurrency(currency) {
-    return currency === CURRENCIES.CLP || currency === CURRENCIES.USD || currency === CURRENCIES.GBP;
+    return currency === CURRENCIES.CLP || currency === CURRENCIES.USD || currency === CURRENCIES.GBP || currency === CURRENCIES.EUR;
   }
 
   /**
@@ -161,7 +172,7 @@ class CurrencyConversionService {
    * @param {number} amount - The amount to convert
    * @param {string} currency - Source currency
    * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
-   * @returns {Object} Object with clpValue, usdValue, gbpValue (calculated values)
+  * @returns {Object} Object with clpValue, usdValue, gbpValue, eurValue (calculated values)
    */
   getAllCurrencyValues(amount, currency, maxRetries = 3) {
     // If currency is not supported, use Google Finance to calculate actual values
@@ -183,11 +194,13 @@ class CurrencyConversionService {
         const clpValue = this.convertToClp(amount, currency);
         const usdValue = this.convertFromClp(clpValue, CURRENCIES.USD);
         const gbpValue = this.convertFromClp(clpValue, CURRENCIES.GBP);
+        const eurValue = this.convertFromClp(clpValue, CURRENCIES.EUR);
 
         return {
           clpValue: Math.round(clpValue * 100) / 100, // Round to 2 decimal places
           usdValue: Math.round(usdValue * 100) / 100,
-          gbpValue: Math.round(gbpValue * 100) / 100
+          gbpValue: Math.round(gbpValue * 100) / 100,
+          eurValue: Math.round(eurValue * 100) / 100
         };
       } catch (error) {
         lastError = error;
@@ -205,7 +218,8 @@ class CurrencyConversionService {
     return {
       clpValue: null,
       usdValue: null,
-      gbpValue: null
+      gbpValue: null,
+      eurValue: null
     };
   }
 
@@ -213,13 +227,14 @@ class CurrencyConversionService {
    * Get all currency values using Google Finance formulas for unsupported currencies
    * @param {number} amount - The amount to convert
    * @param {string} currency - Source currency
-   * @returns {Object} Object with clpValue, usdValue, gbpValue as Google Finance formulas
+  * @returns {Object} Object with clpValue, usdValue, gbpValue, eurValue as Google Finance formulas
    */
   getAllCurrencyValuesWithGoogleFinance(amount, currency) {
     return {
       clpValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.CLP),
       usdValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.USD),
-      gbpValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.GBP)
+      gbpValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.GBP),
+      eurValue: this.generateGoogleFinanceFormula(amount, currency, CURRENCIES.EUR)
     };
   }
 
@@ -227,7 +242,7 @@ class CurrencyConversionService {
    * Calculate Google Finance values and return actual numbers instead of formulas
    * @param {number} amount - The amount to convert
    * @param {string} currency - Source currency
-   * @returns {Object} Object with clpValue, usdValue, gbpValue as calculated numbers
+  * @returns {Object} Object with clpValue, usdValue, gbpValue, eurValue as calculated numbers
    */
   getAllCurrencyValuesWithGoogleFinanceCalculated(amount, currency) {
     try {
@@ -239,6 +254,7 @@ class CurrencyConversionService {
       const clpCell = tempSheet.getRange('B1');
       const usdCell = tempSheet.getRange('C1');
       const gbpCell = tempSheet.getRange('D1');
+      const eurCell = tempSheet.getRange('E1');
       
       // Set the amount
       amountCell.setValue(amount);
@@ -247,6 +263,7 @@ class CurrencyConversionService {
       clpCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.CLP}")`);
       usdCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.USD}")`);
       gbpCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.GBP}")`);
+      eurCell.setFormula(`=A1*GOOGLEFINANCE("CURRENCY:${currency}${CURRENCIES.EUR}")`);
       
       // Wait a moment for formulas to calculate
       SpreadsheetApp.flush();
@@ -256,24 +273,27 @@ class CurrencyConversionService {
       const clpValue = clpCell.getValue();
       const usdValue = usdCell.getValue();
       const gbpValue = gbpCell.getValue();
+      const eurValue = eurCell.getValue();
       
       // Clean up - delete the temporary sheet
       SpreadsheetApp.getActiveSpreadsheet().deleteSheet(tempSheet);
       
       // Check if we got valid values
-      if (isNaN(clpValue) || isNaN(usdValue) || isNaN(gbpValue)) {
+      if (isNaN(clpValue) || isNaN(usdValue) || isNaN(gbpValue) || isNaN(eurValue)) {
         Logger.log(`Google Finance calculation failed for ${amount} ${currency}`);
         return {
           clpValue: null,
           usdValue: null,
-          gbpValue: null
+          gbpValue: null,
+          eurValue: null
         };
       }
       
       return {
         clpValue: Math.round(clpValue * 100) / 100,
         usdValue: Math.round(usdValue * 100) / 100,
-        gbpValue: Math.round(gbpValue * 100) / 100
+        gbpValue: Math.round(gbpValue * 100) / 100,
+        eurValue: Math.round(eurValue * 100) / 100
       };
       
     } catch (error) {
@@ -281,7 +301,8 @@ class CurrencyConversionService {
       return {
         clpValue: null,
         usdValue: null,
-        gbpValue: null
+        gbpValue: null,
+        eurValue: null
       };
     }
   }
@@ -328,7 +349,7 @@ class CurrencyConversionService {
    * Fix currency conversion for a movement by recalculating all currency values
    * @param {number} amount - The original amount
    * @param {string} currency - The original currency
-   * @returns {Object|null} Object with clpValue, usdValue, gbpValue or null if conversion fails
+  * @returns {Object|null} Object with clpValue, usdValue, gbpValue, eurValue or null if conversion fails
    */
   fixCurrencyConversion(amount, currency) {
     try {

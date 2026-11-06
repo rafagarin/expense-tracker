@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Build a minimal movement row that matches the COLUMNS schema.
 function makeMovement(sourceDescription, id = 1) {
-  const row = new Array(21).fill(null);
+  const row = new Array(COLUMNS.YEAR_MONTH + 1).fill(null);
   row[COLUMNS.SOURCE_DESCRIPTION] = sourceDescription;
   row[COLUMNS.ID] = id;
   return row;

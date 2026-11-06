@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Build a minimal movement row that has a user_description but no amount —
 // the shape getMovementsNeedingFieldInference returns.
 function makeDescriptionOnlyMovement({ id = 1, userDescription = 'paid £42.50 at Costa Coffee' } = {}) {
-  const row = new Array(21).fill(null);
+  const row = new Array(COLUMNS.YEAR_MONTH + 1).fill(null);
   row[COLUMNS.ID] = id;
   row[COLUMNS.USER_DESCRIPTION] = userDescription;
   return row;
@@ -32,6 +32,7 @@ describe('processDescriptionOnlyMovements', () => {
       clpValue: 42500,
       usdValue: 53,
       gbpValue: 42.5,
+      eurValue: 42.5,
     });
   });
 
@@ -110,6 +111,7 @@ describe('processDescriptionOnlyMovements', () => {
     expect(data.clpValue).toBe(42500);
     expect(data.usdValue).toBe(53);
     expect(data.gbpValue).toBe(42.5);
+    expect(data.eurValue).toBe(42.5);
   });
 
   it('sets source_description to the user description', async () => {

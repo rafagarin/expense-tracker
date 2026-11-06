@@ -36,6 +36,7 @@ describe('processBankEmails', () => {
       clpValue: 50000,
       usdValue: 62,
       gbpValue: 50,
+      eurValue: 46,
     });
   });
 
@@ -148,5 +149,6 @@ describe('processBankEmails', () => {
     expect(row[COLUMNS.GBP_VALUE]).toBe(50);
     expect(row[COLUMNS.USD_VALUE]).toBe(62);
     expect(row[COLUMNS.CLP_VALUE]).toBe(50000);
+    expect(row[COLUMNS.EUR_VALUE]).toBe(46);
   });
 });

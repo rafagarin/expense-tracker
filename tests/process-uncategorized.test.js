@@ -11,7 +11,7 @@ function makeMovement({
   type = 'Expense',
   direction = 'Outflow',
 } = {}) {
-  const row = new Array(21).fill(null);
+  const row = new Array(COLUMNS.YEAR_MONTH + 1).fill(null);
   row[COLUMNS.ID] = id;
   row[COLUMNS.USER_DESCRIPTION] = userDescription;
   row[COLUMNS.COMMENT] = comment;
