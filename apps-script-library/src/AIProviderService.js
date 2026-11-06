@@ -365,6 +365,7 @@ ${categoriesList}
 EARNING ANALYSIS:
 Set "is_earning" to true if:
 - The user description explicitly indicates money received as income (e.g., "salary", "earning", "income", "paycheck", "wages", "freelance payment", "got paid", "payment received", "commission", "bonus", "dividends", "rental income").
+- The instruction says "Mark this as an income".
 - The direction is already "Inflow" (meaning money is coming in to the user).
 When "is_earning" is true, set "category" to null (the system will assign "None" automatically).
 For all other transactions, set "is_earning" to false.
@@ -372,7 +373,7 @@ For all other transactions, set "is_earning" to false.
 ---
 NEUTRAL TRANSACTION ANALYSIS:
 Analyze the description to see if this is a neutral transaction (that is, not an inflow or an outlfow).
-Set "is_neutral" to true and "category" to null if the user description indicates a transfer between the user's own accounts (e.g., "self transfer"), or if the user's instructions indicate the movement should be ignored (eg "neutral" or "ignore", etc).
+Set "is_neutral" to true and "category" to null if the user description indicates a transfer between the user's own accounts (e.g., "self transfer"), or if the instruction says "Mark this as neutral" or asks to ignore the movement.
 For all other transactions, set "is_neutral" to false.
 
 ---
@@ -380,12 +381,12 @@ SPLIT ANALYSIS:
 There are two types of splits. Determine if a split is needed and what type it is.
 
 1.  **DEBIT Split**: When a payment is shared with other people, and you expect to be paid back.
-    -   **Indicators**: "split with", "shared with", "paid for group", "dinner with friends", "my part", "their part", "dividir con", "compartir con".
+    -   **Indicators**: "Split this movement. A part is owed to me.", "split with", "shared with", "paid for group", "dinner with friends".
     -   If you detect a DEBIT split, set "needs_split": true and "split_type": "DEBIT".
 
 2.  **EXPENSE Split**: When a single payment covers multiple personal expense categories.
     -   **Example**: A supermarket bill for both "groceries" and "household" items.
-    -   **Indicators**: Instructions like "split 20 for household", "15 for transport, rest is food".
+    -   **Indicators**: "Split this into two expenses", or details like "split 20 for household", "15 for transport, rest is food".
     -   If you detect an EXPENSE split, set "needs_split": true and "split_type": "EXPENSE".
 
 ---
@@ -408,6 +409,7 @@ FIELD-SPECIFIC INSTRUCTIONS:
 
 -   **If no split is needed ("needs_split": false)**:
     -   "category": The single best category for the expense.
+  -   If the instruction says "Categorize this movement", choose the best matching category.
     -   "is_neutral": true if it's a self-transfer or neutral movement, otherwise false.
     -   "needs_split": false.
     -   Set all "split_*" fields to null.
@@ -432,7 +434,7 @@ FIELD-SPECIFIC INSTRUCTIONS:
 
 ---
 Example 1 (No Split):
-User Description: "Lunch at cafe"
+User Description: "Lunch at cafe. Categorize this movement"
 Amount: CLP 10000
 Output: { "category": "restaurants", "is_earning": false, "is_neutral": false, "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null }
 
