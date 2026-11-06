@@ -281,6 +281,15 @@ class ExpenseTracker {
    */
   async processMonzoTransactions() {
     try {
+      const properties = this.clientProperties || PropertiesService.getScriptProperties();
+      const clientId = properties.getProperty(API_CONFIG.MONZO.CLIENT_ID_PROPERTY);
+      const clientSecret = properties.getProperty(API_CONFIG.MONZO.CLIENT_SECRET_PROPERTY);
+
+      if (!clientId || !clientId.trim() || !clientSecret || !clientSecret.trim()) {
+        Logger.log('Skipping Monzo transaction processing: MONZO_CLIENT_ID and MONZO_CLIENT_SECRET must be set.');
+        return;
+      }
+
       Logger.log('Starting Monzo transactions processing...');
 
       // 1. Refresh access token first (tokens expire after 6 hours)

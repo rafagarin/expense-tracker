@@ -45,6 +45,22 @@ describe('processMonzoTransactions', () => {
     expect(tracker.database.addMovementsBatch).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['MONZO_CLIENT_ID', { MONZO_CLIENT_SECRET: 'test-secret' }],
+    ['MONZO_CLIENT_SECRET', { MONZO_CLIENT_ID: 'test-client-id' }],
+  ])('returns early when %s is missing', async (missingCredential, configuredCredentials) => {
+    tracker.clientProperties = {
+      getProperty: key => configuredCredentials[key] || null,
+    };
+
+    await tracker.processMonzoTransactions();
+
+    expect(tracker.monzoService.refreshAccessToken).not.toHaveBeenCalled();
+    expect(tracker.monzoService.testConnection).not.toHaveBeenCalled();
+    expect(tracker.monzoService.getRecentTransactions).not.toHaveBeenCalled();
+    expect(tracker.database.addMovementsBatch).not.toHaveBeenCalled();
+  });
+
   it('returns early when there are no recent transactions', async () => {
     tracker.monzoService.getRecentTransactions.mockResolvedValue([]);
 
