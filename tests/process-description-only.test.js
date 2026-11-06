@@ -45,6 +45,26 @@ describe('processDescriptionOnlyMovements', () => {
     expect(db.getMovementsNeedingFieldInference().map(movement => movement[COLUMNS.ID])).toEqual([2]);
   });
 
+  it('assigns and persists unique IDs to multiple description-only rows missing IDs', () => {
+    const db = new Database();
+    const firstMovement = makeDescriptionOnlyMovement({ id: null, userDescription: 'Dinner. 12 pounds' });
+    const secondMovement = makeDescriptionOnlyMovement({ id: '', userDescription: 'Lunch, 15 pounds' });
+    const setValue = vi.fn();
+    db.sheet = {
+      getRange: vi.fn(() => ({ setValue })),
+    };
+    db.getAllMovements = vi.fn().mockReturnValue([firstMovement, secondMovement]);
+    db.getNextId = vi.fn().mockReturnValue(40);
+
+    const movements = db.getMovementsNeedingFieldInference();
+
+    expect(movements.map(movement => movement[COLUMNS.ID])).toEqual([40, 41]);
+    expect(db.getNextId).toHaveBeenCalledOnce();
+    expect(db.sheet.getRange).toHaveBeenNthCalledWith(1, 2, COLUMNS.ID + 1);
+    expect(db.sheet.getRange).toHaveBeenNthCalledWith(2, 3, COLUMNS.ID + 1);
+    expect(setValue.mock.calls).toEqual([[40], [41]]);
+  });
+
   // --- early exit ---
 
   it('returns early without calling AI when there are no description-only movements', async () => {

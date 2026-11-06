@@ -205,11 +205,28 @@ class Database {
    */
   getMovementsNeedingFieldInference() {
     const allMovements = this.getAllMovements();
-    return allMovements.filter(movement => {
+    let nextId = null;
+
+    return allMovements.filter((movement, index) => {
       const hasUserDescription = movement[COLUMNS.USER_DESCRIPTION] && String(movement[COLUMNS.USER_DESCRIPTION]).trim() !== '';
       const hasNoAmount = !movement[COLUMNS.AMOUNT] && movement[COLUMNS.AMOUNT] !== 0;
       const isAutomaticReminder = movement[COLUMNS.SOURCE_DESCRIPTION] === AUTOMATIC_REMINDER_SOURCE_DESCRIPTION;
-      return hasUserDescription && hasNoAmount && !isAutomaticReminder;
+
+      if (!hasUserDescription || !hasNoAmount || isAutomaticReminder) {
+        return false;
+      }
+
+      if (movement[COLUMNS.ID] === null || movement[COLUMNS.ID] === undefined || movement[COLUMNS.ID] === '') {
+        if (nextId === null) {
+          nextId = this.getNextId();
+        }
+
+        movement[COLUMNS.ID] = nextId;
+        this.sheet.getRange(index + 2, COLUMNS.ID + 1).setValue(nextId);
+        nextId++;
+      }
+
+      return true;
     });
   }
 
