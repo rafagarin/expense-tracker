@@ -198,6 +198,8 @@ If you cannot extract any of these fields, set them to null. Only return valid J
 
 Description: "${description}"
 
+For "amount", extract the full original transaction amount paid or charged, before any personal or shared split. Do not return only the user's personal portion or the amount owed by others. For example, for "Lunch with friends. 15 euros. 5 is mine", the amount is 15 and the currency is EUR.
+
 TRANSACTION TYPES — choose exactly one:
 - "expense"          Regular purchase (food, shopping, bills, etc.)
 - "cash"             Cash withdrawal or cash payment
