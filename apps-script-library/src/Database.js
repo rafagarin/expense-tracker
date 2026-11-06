@@ -208,7 +208,8 @@ class Database {
     return allMovements.filter(movement => {
       const hasUserDescription = movement[COLUMNS.USER_DESCRIPTION] && String(movement[COLUMNS.USER_DESCRIPTION]).trim() !== '';
       const hasNoAmount = !movement[COLUMNS.AMOUNT] && movement[COLUMNS.AMOUNT] !== 0;
-      return hasUserDescription && hasNoAmount;
+      const isAutomaticReminder = movement[COLUMNS.SOURCE_DESCRIPTION] === AUTOMATIC_REMINDER_SOURCE_DESCRIPTION;
+      return hasUserDescription && hasNoAmount && !isAutomaticReminder;
     });
   }
 
@@ -667,6 +668,11 @@ class Database {
     const currencyConversionService = new CurrencyConversionService();
     
     return allMovements.filter(movement => {
+      const isAutomaticReminder = movement[COLUMNS.SOURCE_DESCRIPTION] === AUTOMATIC_REMINDER_SOURCE_DESCRIPTION;
+      if (isAutomaticReminder) {
+        return false;
+      }
+
       const clpValue = movement[COLUMNS.CLP_VALUE];
       const usdValue = movement[COLUMNS.USD_VALUE];
       const gbpValue = movement[COLUMNS.GBP_VALUE];
@@ -784,7 +790,7 @@ class Database {
     reminderRow[COLUMNS.TYPE] = MOVEMENT_TYPES.REMINDER;
     reminderRow[COLUMNS.AMOUNT] = null;
     reminderRow[COLUMNS.CURRENCY] = null;
-    reminderRow[COLUMNS.SOURCE_DESCRIPTION] = 'Automatic Reminder';
+    reminderRow[COLUMNS.SOURCE_DESCRIPTION] = AUTOMATIC_REMINDER_SOURCE_DESCRIPTION;
     reminderRow[COLUMNS.USER_DESCRIPTION] = description;
     reminderRow[COLUMNS.COMMENT] = null;
     reminderRow[COLUMNS.AI_COMMENT] = null;

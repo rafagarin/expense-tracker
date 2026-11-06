@@ -35,6 +35,16 @@ describe('processDescriptionOnlyMovements', () => {
     });
   });
 
+  it('does not select automatic reminder rows for field inference', () => {
+    const db = new Database();
+    const reminder = makeDescriptionOnlyMovement({ id: 1, userDescription: 'Rent' });
+    reminder[COLUMNS.SOURCE_DESCRIPTION] = AUTOMATIC_REMINDER_SOURCE_DESCRIPTION;
+    const manualEntry = makeDescriptionOnlyMovement({ id: 2, userDescription: 'paid £10 for coffee' });
+    db.getAllMovements = vi.fn().mockReturnValue([reminder, manualEntry]);
+
+    expect(db.getMovementsNeedingFieldInference().map(movement => movement[COLUMNS.ID])).toEqual([2]);
+  });
+
   // --- early exit ---
 
   it('returns early without calling AI when there are no description-only movements', async () => {

@@ -40,6 +40,8 @@ const COLUMNS = {
   YEAR_MONTH: 21
 };
 
+const AUTOMATIC_REMINDER_SOURCE_DESCRIPTION = 'Automatic Reminder';
+
 // Supported currencies
 const CURRENCIES = {
   CLP: 'CLP',

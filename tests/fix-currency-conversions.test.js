@@ -58,6 +58,16 @@ describe('fixFailedCurrencyConversions', () => {
     vi.restoreAllMocks();
   });
 
+  it('does not select automatic reminders for currency conversion fixes', () => {
+    const db = new Database();
+    const reminder = makeMovement({ id: 1 });
+    reminder[COLUMNS.SOURCE_DESCRIPTION] = AUTOMATIC_REMINDER_SOURCE_DESCRIPTION;
+    const failedMovement = makeMovement({ id: 2 });
+    db.getAllMovements = vi.fn().mockReturnValue([reminder, failedMovement]);
+
+    expect(db.getMovementsWithFailedCurrencyConversion().map(movement => movement[COLUMNS.ID])).toEqual([2]);
+  });
+
   it('makes no sheet writes when there are no failed conversions', async () => {
     tracker.database.getMovementsWithFailedCurrencyConversion.mockReturnValue([]);
 
